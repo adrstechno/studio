@@ -12,20 +12,17 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        if (role === 'admin') {
-          router.replace('/dashboard');
-        } else if (role === 'employee') {
-          router.replace('/employee-dashboard');
-        } else {
-          // If the role is still loading, we might wait, but if there's a user and no role, something is off.
-          // For now, we'll default to login if the role isn't immediately available after user loads.
-          // This can be improved with more specific loading states.
-        }
-      } else {
-        router.replace('/login');
+    if (loading) return; // Wait until loading is complete
+
+    if (user) {
+      if (role === 'admin') {
+        router.replace('/dashboard');
+      } else if (role === 'employee') {
+        router.replace('/employee-dashboard');
       }
+      // If role is still loading or null, we'll wait for the next effect run.
+    } else {
+      router.replace('/login');
     }
   }, [user, loading, role, router]);
 
