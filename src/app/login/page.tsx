@@ -55,13 +55,11 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     if (!loading && user) {
-        if (role === 'admin') {
-          router.replace('/dashboard');
-        } else if (role === 'employee') {
-            router.replace('/employee-dashboard');
-        }
+        // Redirect to a neutral page or a generic app landing page
+        // which is handled by the root page.tsx and layout.tsx now.
+        router.replace('/'); 
     }
-  }, [user, loading, role, router]);
+  }, [user, loading, router]);
 
   const handleAuthError = (error: FirebaseError) => {
     let title = 'An error occurred';

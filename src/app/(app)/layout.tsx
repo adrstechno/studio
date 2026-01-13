@@ -66,14 +66,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
   
-  React.useEffect(() => {
-    if (!loading && user && role === 'employee') {
-        router.replace('/employee-dashboard');
-    }
-  }, [user, loading, role, router, pathname]);
-
-  if (loading || !user || role !== 'admin') {
+  if (loading || !user) {
     return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // If a non-admin tries to access an admin page, redirect them.
+  // But allow access to the employee dashboard
+  if (role === 'employee' && pathname !== '/employee-dashboard') {
+    router.replace('/employee-dashboard');
+     return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If an admin is on the employee dashboard, redirect them to the admin dashboard.
+  if (role === 'admin' && pathname === '/employee-dashboard') {
+    router.replace('/dashboard');
+     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
       </div>
@@ -128,6 +143,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent side="right" align="start" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard"><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
@@ -167,6 +185,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                 <DropdownMenuItem asChild>
+                    <Link href={role === 'admin' ? "/dashboard" : "/employee-dashboard"}><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Settings className="mr-2 h-4 w-4" />
                   Settings

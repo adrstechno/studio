@@ -15,12 +15,15 @@ export default function HomePage() {
     if (loading) return; // Wait until loading is complete
 
     if (user) {
-      if (role === 'admin') {
+      // The user is logged in. The (app) layout will handle role-based rendering.
+      // We can just stay on the root page which will be wrapped by the layout.
+      // Or we can default to dashboard. For now, let's let the layout handle it,
+      // and we just make sure unauthenticated users are sent to login.
+       if (role === 'admin') {
         router.replace('/dashboard');
       } else if (role === 'employee') {
         router.replace('/employee-dashboard');
       }
-      // If role is still loading or null, we'll wait for the next effect run.
     } else {
       router.replace('/login');
     }
