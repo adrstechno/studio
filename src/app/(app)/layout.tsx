@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Avatar,
   AvatarFallback,
@@ -37,10 +37,14 @@ import {
   ListTodo,
   Users,
   Workflow,
+  LogOut,
+  LoaderCircle,
 } from 'lucide-react';
+import { useUser } from '@/firebase';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 const navItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutGrid },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { href: '/employees', label: 'Employees', icon: Users },
   { href: '/tasks', label: 'Tasks', icon: ListTodo },
   { href: '/attendance', label: 'Attendance', icon: CalendarCheck },
@@ -49,6 +53,31 @@ const navItems = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, loading, error, role, signOut } = useUser();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (role && role !== 'admin') {
+     router.replace('/employee-dashboard');
+     return (
+        <div className="flex h-screen items-center justify-center">
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+        </div>
+     );
+  }
 
   return (
     <SidebarProvider>
@@ -56,7 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="shrink-0" asChild>
-              <Link href="/">
+              <Link href="/dashboard">
                 <Workflow className="size-5 text-primary" />
               </Link>
             </Button>
@@ -86,12 +115,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center w-full gap-2 p-2 rounded-md outline-none hover:bg-sidebar-accent focus-visible:ring-2 ring-sidebar-ring">
                  <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://picsum.photos/seed/11/100/100" alt="Admin" />
-                  <AvatarFallback>AD</AvatarFallback>
+                  <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} />
+                  <AvatarFallback>{user.displayName?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-start overflow-hidden text-sm">
-                  <span className="font-medium truncate">Admin User</span>
-                  <span className="text-muted-foreground text-xs truncate">admin@company.com</span>
+                  <span className="font-medium truncate">{user.displayName ?? 'Admin User'}</span>
+                  <span className="text-muted-foreground text-xs truncate">{user.email}</span>
                 </div>
               </button>
             </DropdownMenuTrigger>
@@ -101,7 +130,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarFooter>
@@ -121,8 +153,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                         <Avatar className="h-8 w-8">
-                            <AvatarImage src="https://picsum.photos/seed/11/100/100" alt="Admin" />
-                            <AvatarFallback>AD</AvatarFallback>
+                            <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} />
+                            <AvatarFallback>{user.displayName?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
                         </Avatar>
                     </Button>
                 </DropdownMenuTrigger>
@@ -132,7 +164,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <DropdownMenuItem>Profile</DropdownMenuItem>
                   <DropdownMenuItem>Settings</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  <DropdownMenuItem onClick={signOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -141,6 +176,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </SidebarInset>
+      <FirebaseErrorListener />
     </SidebarProvider>
   );
 }

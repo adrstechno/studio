@@ -33,7 +33,7 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
-        title="Dashboard"
+        title="Admin Dashboard"
         description="Here's a high-level overview of your company's activities."
       />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
