@@ -59,38 +59,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
   const { user, loading, error, role, signOut } = useUser(auth);
   const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = React.useState(false);
 
   React.useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
     }
   }, [user, loading, router]);
-
-  React.useEffect(() => {
-    if (loading || !role) return;
-
-    const isEmployeeOnAdminPage = role === 'employee' && pathname !== '/employee-dashboard';
-    const isAdminOnEmployeePage = role === 'admin' && pathname === '/employee-dashboard';
-
-    if (isEmployeeOnAdminPage) {
-      setIsRedirecting(true);
-      router.replace('/employee-dashboard');
-    } else if (isAdminOnEmployeePage) {
-      setIsRedirecting(true);
-      router.replace('/dashboard');
-    } else {
-      setIsRedirecting(false);
-    }
-  }, [role, pathname, loading, router]);
   
-  if (loading || !user || isRedirecting) {
+  if (loading || !user) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
+  
+  // For employee role, only the employee dashboard is accessible.
+  // Redirect if they try to access any other page.
+  if (role === 'employee' && pathname !== '/employee-dashboard') {
+     return <div className="flex h-screen items-center justify-center bg-background"><LoaderCircle className="h-12 w-12 animate-spin text-primary" /></div>;
+  }
+  
+  // Prevent admin from accessing employee-dashboard
+  if (role === 'admin' && pathname === '/employee-dashboard') {
+     return <div className="flex h-screen items-center justify-center bg-background"><LoaderCircle className="h-12 w-12 animate-spin text-primary" /></div>;
+  }
+
 
   return (
     <SidebarProvider>

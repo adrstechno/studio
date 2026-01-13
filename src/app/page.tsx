@@ -8,7 +8,7 @@ import { LoaderCircle } from 'lucide-react';
 
 export default function HomePage() {
   const auth = useAuth();
-  const { user, loading } = useUser(auth);
+  const { user, loading, role } = useUser(auth);
   const router = useRouter();
 
   useEffect(() => {
@@ -17,14 +17,16 @@ export default function HomePage() {
     if (!user) {
       // If no user is logged in, redirect to the login page.
       router.replace('/login');
+    } else {
+      // If a user is logged in, redirect them to their respective dashboard.
+      // This is now the primary redirection point.
+      if (role === 'admin') {
+        router.replace('/dashboard');
+      } else if (role === 'employee') {
+        router.replace('/employee-dashboard');
+      }
     }
-    // If the user is logged in, the (app) layout will handle rendering
-    // the correct UI, including navigation. We will also be on the / route
-    // and can navigate from there. Let's navigate to the dashboard as a default.
-    // If a user is logged in, let's just go to the dashboard.
-    router.replace('/dashboard');
-    
-  }, [user, loading, router]);
+  }, [user, loading, role, router]);
 
   // Show a loading spinner while checking auth state and redirecting.
   return (
