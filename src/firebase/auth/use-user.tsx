@@ -8,8 +8,10 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut as firebaseSignOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { FirebaseContext } from '@/firebase/provider';
 
 export interface UserAuthHookResult {
@@ -18,6 +20,8 @@ export interface UserAuthHookResult {
   error: Error | null;
   role: 'admin' | 'employee' | null;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -28,35 +32,34 @@ export function useUser(auth: Auth): UserAuthHookResult {
   const [role, setRole] = useState<'admin' | 'employee' | null>(null);
   const context = useContext(FirebaseContext);
   
-  // Directly access firestore from context to avoid the hook cycle
   const firestore = context?.firestore ?? null;
 
-  useEffect(() => {
-    if (!firestore) {
-      // Firestore is not yet available, wait for it.
-      // This might happen on initial load. The effect will re-run when context updates.
-      return;
+  const fetchUserRole = useCallback(async (uid: string) => {
+    if (!firestore) return;
+    try {
+      const userDocRef = doc(firestore, 'users', uid);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        setRole(userDoc.data().role);
+      } else {
+        // Default new sign-ups to employee
+        await setDoc(userDocRef, { role: 'employee' });
+        setRole('employee'); 
+      }
+    } catch (e) {
+      setError(e as Error);
+      setRole(null);
     }
+  }, [firestore]);
 
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
       async (firebaseUser) => {
         setLoading(true);
         if (firebaseUser) {
           setUser(firebaseUser);
-          try {
-            const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
-              setRole(userDoc.data().role);
-            } else {
-              // Handle case where user document doesn't exist, maybe default to a role
-              setRole('employee'); 
-            }
-          } catch (e) {
-            setError(e as Error);
-            setRole(null);
-          }
+          await fetchUserRole(firebaseUser.uid);
         } else {
           setUser(null);
           setRole(null);
@@ -70,7 +73,7 @@ export function useUser(auth: Auth): UserAuthHookResult {
     );
 
     return () => unsubscribe();
-  }, [auth, firestore]);
+  }, [auth, fetchUserRole]);
 
   const signInWithGoogle = useCallback(async () => {
     setLoading(true);
@@ -80,8 +83,32 @@ export function useUser(auth: Auth): UserAuthHookResult {
       await signInWithPopup(auth, provider);
     } catch (err) {
       setError(err as Error);
-    } 
-    // No finally setLoading(false) because onAuthStateChanged will handle it
+      // Let onAuthStateChanged handle loading state
+    }
+  }, [auth]);
+
+  const signInWithEmail = useCallback(async (email:string, password:string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      setError(err as Error);
+      setLoading(false); // Set loading false on error
+      throw err;
+    }
+  }, [auth]);
+
+  const signUpWithEmail = useCallback(async (email:string, password:string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      setError(err as Error);
+      setLoading(false);
+      throw err;
+    }
   }, [auth]);
 
   const signOut = useCallback(async () => {
@@ -93,8 +120,7 @@ export function useUser(auth: Auth): UserAuthHookResult {
       setError(err as Error);
       setLoading(false);
     }
-    // onAuthStateChanged will set loading to false
   }, [auth]);
 
-  return { user, loading, error, role, signInWithGoogle, signOut };
+  return { user, loading, error, role, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut };
 }

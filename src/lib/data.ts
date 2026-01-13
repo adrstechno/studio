@@ -3,7 +3,7 @@ export type Employee = {
   name: string;
   avatarUrl: string;
   email: string;
-  role: 'Developer' | 'Designer' | 'Manager' | 'QA';
+  role: 'Developer' | 'Designer' | 'Manager' | 'QA' | 'Admin';
   project: string;
   enrollmentDate: string;
 };
@@ -31,15 +31,19 @@ export type LeaveRequest = {
   status: 'Pending' | 'Approved' | 'Rejected';
 };
 
+// You can use these credentials to log in and test the different roles.
+// Admin: admin@company.com / password
+// Employees: e.g., sachin@company.com / password
 export const employees: Employee[] = [
-  { id: 'emp-1', name: 'Alice Johnson', avatarUrl: 'https://picsum.photos/seed/1/100/100', email: 'alice@company.com', role: 'Developer', project: 'Phoenix', enrollmentDate: '2022-01-15' },
-  { id: 'emp-2', name: 'Bob Williams', avatarUrl: 'https://picsum.photos/seed/2/100/100', email: 'bob@company.com', role: 'Designer', project: 'Odyssey', enrollmentDate: '2021-11-20' },
-  { id: 'emp-3', name: 'Charlie Brown', avatarUrl: 'https://picsum.photos/seed/3/100/100', email: 'charlie@company.com', role: 'Manager', project: 'Vanguard', enrollmentDate: '2020-03-10' },
-  { id: 'emp-4', name: 'Diana Miller', avatarUrl: 'https://picsum.photos/seed/4/100/100', email: 'diana@company.com', role: 'QA', project: 'Phoenix', enrollmentDate: '2023-02-28' },
-  { id: 'emp-5', name: 'Ethan Davis', avatarUrl: 'https://picsum.photos/seed/5/100/100', email: 'ethan@company.com', role: 'Developer', project: 'Odyssey', enrollmentDate: '2022-08-01' },
-  { id: 'emp-6', name: 'Fiona Garcia', avatarUrl: 'https://picsum.photos/seed/6/100/100', email: 'fiona@company.com', role: 'Developer', project: 'Vanguard', enrollmentDate: '2023-05-18' },
-  { id: 'emp-7', name: 'George Rodriguez', avatarUrl: 'https://picsum.photos/seed/7/100/100', email: 'george@company.com', role: 'Designer', project: 'Phoenix', enrollmentDate: '2021-09-05' },
-  { id: 'emp-8', name: 'Hannah Martinez', avatarUrl: 'https://picsum.photos/seed/8/100/100', email: 'hannah@company.com', role: 'QA', project: 'Odyssey', enrollmentDate: '2022-12-12' },
+  { id: 'adm-1', name: 'Admin User', avatarUrl: 'https://picsum.photos/seed/admin/100/100', email: 'admin@company.com', role: 'Admin', project: 'All', enrollmentDate: '2020-01-01' },
+  { id: 'emp-1', name: 'Sachin', avatarUrl: 'https://picsum.photos/seed/sachin/100/100', email: 'sachin@company.com', role: 'Developer', project: 'Phoenix', enrollmentDate: '2022-01-15' },
+  { id: 'emp-2', name: 'Srajal', avatarUrl: 'https://picsum.photos/seed/srajal/100/100', email: 'srajal@company.com', role: 'Designer', project: 'Odyssey', enrollmentDate: '2021-11-20' },
+  { id: 'emp-3', name: 'Sakshi', avatarUrl: 'https://picsum.photos/seed/sakshi/100/100', email: 'sakshi@company.com', role: 'Manager', project: 'Vanguard', enrollmentDate: '2020-03-10' },
+  { id: 'emp-4', name: 'Sapeksh', avatarUrl: 'https://picsum.photos/seed/sapeksh/100/100', email: 'sapeksh@company.com', role: 'QA', project: 'Phoenix', enrollmentDate: '2023-02-28' },
+  { id: 'emp-5', name: 'Sparsh', avatarUrl: 'https://picsum.photos/seed/sparsh/100/100', email: 'sparsh@company.com', role: 'Developer', project: 'Odyssey', enrollmentDate: '2022-08-01' },
+  { id: 'emp-6', name: 'Danish', avatarUrl: 'https://picsum.photos/seed/danish/100/100', email: 'danish@company.com', role: 'Developer', project: 'Vanguard', enrollmentDate: '2023-05-18' },
+  { id: 'emp-7', name: 'Sneha', avatarUrl: 'https://picsum.photos/seed/sneha/100/100', email: 'sneha@company.com', role: 'Designer', project: 'Phoenix', enrollmentDate: '2021-09-05' },
+  { id: 'emp-8', name: 'Ishant', avatarUrl: 'https://picsum.photos/seed/ishant/100/100', email: 'ishant@company.com', role: 'QA', project: 'Odyssey', enrollmentDate: '2022-12-12' },
 ];
 
 export const projects: Project[] = [
