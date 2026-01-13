@@ -18,15 +18,15 @@ export default function HomePage() {
       // If no user is logged in, redirect to the login page.
       router.replace('/login');
     }
-    // If the user is logged in, stay on this page.
-    // The (app) layout will wrap this page and show the navigation.
-    // The user can then choose where to go.
-    // Let's redirect to the dashboard as a default landing spot within the app.
+    // If the user is logged in, the (app) layout will handle rendering
+    // the correct UI, including navigation. We will also be on the / route
+    // and can navigate from there. Let's navigate to the dashboard as a default.
+    // If a user is logged in, let's just go to the dashboard.
     router.replace('/dashboard');
-
+    
   }, [user, loading, router]);
 
-  // Show a loading spinner while checking auth state.
+  // Show a loading spinner while checking auth state and redirecting.
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">
       <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
