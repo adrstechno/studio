@@ -101,7 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <Button variant="ghost" size="icon" className="shrink-0" asChild>
-              <Link href="/dashboard">
+              <Link href="/">
                 <Workflow className="size-6 text-primary" />
               </Link>
             </Button>
@@ -144,7 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/dashboard"><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
+                <Link href={role === 'admin' ? "/dashboard" : "/employee-dashboard"}><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />

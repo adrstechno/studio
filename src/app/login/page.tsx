@@ -40,7 +40,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function LoginPage() {
   const auth = useAuth();
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, user, loading, role } = useUser(auth);
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, user, loading } = useUser(auth);
   const router = useRouter();
   const { toast } = useToast();
   const [isSignUp, setIsSignUp] = React.useState(false);
@@ -55,8 +55,8 @@ export default function LoginPage() {
 
   React.useEffect(() => {
     if (!loading && user) {
-        // Redirect to a neutral page or a generic app landing page
-        // which is handled by the root page.tsx and layout.tsx now.
+        // After login, redirect to the root page, which will then
+        // handle showing the correct layout or further redirection.
         router.replace('/'); 
     }
   }, [user, loading, router]);
