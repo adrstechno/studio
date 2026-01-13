@@ -19,8 +19,9 @@ export default function HomePage() {
         } else if (role === 'employee') {
           router.replace('/employee-dashboard');
         } else {
-          // Default redirect if role is not set
-          router.replace('/login');
+          // If the role is still loading, we might wait, but if there's a user and no role, something is off.
+          // For now, we'll default to login if the role isn't immediately available after user loads.
+          // This can be improved with more specific loading states.
         }
       } else {
         router.replace('/login');
@@ -29,7 +30,7 @@ export default function HomePage() {
   }, [user, loading, role, router]);
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center">
+    <div className="flex h-screen w-screen items-center justify-center bg-background">
       <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
     </div>
   );

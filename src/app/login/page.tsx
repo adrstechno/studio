@@ -59,9 +59,6 @@ export default function LoginPage() {
           router.replace('/dashboard');
         } else if (role === 'employee') {
             router.replace('/employee-dashboard');
-        } else {
-            // Fallback for users who might not have a role yet
-            router.replace('/');
         }
     }
   }, [user, loading, role, router]);
@@ -72,6 +69,7 @@ export default function LoginPage() {
     switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
+        case 'auth/invalid-credential':
             title = 'Invalid Credentials';
             description = 'The email or password you entered is incorrect.';
             break;

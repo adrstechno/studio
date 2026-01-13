@@ -67,18 +67,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, router]);
   
   React.useEffect(() => {
-    if (!loading && user && role && role !== 'admin') {
-      router.replace('/employee-dashboard');
-    }
-  }, [user, loading, role, router]);
+    // This effect ensures that if an employee tries to access an admin route, they are redirected.
+    // The admin routes are all routes under / except /employee-dashboard
+    const isAdminRoute = navItems.some(item => pathname.startsWith(item.href));
 
-  if (loading || !user || (role && role !== 'admin')) {
+    if (!loading && user && role === 'employee' && isAdminRoute) {
+        router.replace('/employee-dashboard');
+    }
+  }, [user, loading, role, router, pathname]);
+
+  if (loading || !user) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
+  
+  if (role === 'employee') {
+      // For employees, we don't render the main app layout, as they will be in their own dashboard.
+      // We check the path to prevent a render loop if they are already on their dashboard.
+      if(pathname !== '/employee-dashboard') {
+         return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+            </div>
+         );
+      }
+  } else if (role !== 'admin') {
+     // If role is not admin (and not employee), it might still be loading or null.
+     // Show a loader until the role is confirmed to prevent flashing the wrong UI.
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      );
+  }
+
 
   return (
     <SidebarProvider>
