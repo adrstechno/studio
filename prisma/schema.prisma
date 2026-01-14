@@ -15,12 +15,22 @@ model Employee {
   role           Role         @default(Developer)
   project        String       @default("Unassigned")
   enrollmentDate DateTime     @default(now())
+  
+  // Leave Quotas (set by admin)
+  casualLeaveQuota     Int      @default(1)
+  sickLeaveQuota       Int      @default(2)
+  earnedLeaveQuota     Int      @default(0)
+  maternityLeaveQuota  Int      @default(0)
+  paternityLeaveQuota  Int      @default(0)
+  workFromHomeQuota    Int      @default(4)
+  
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   attendance     Attendance[]
   tasks          Task[]
   leaveRequests  LeaveRequest[]
   taskSubmissions TaskSubmission[]
+  dailyLogs      ProjectDailyLog[]
 
   @@map("employees")
 }
@@ -54,6 +64,9 @@ model ProjectDocument {
   type        DocumentType @default(General)
   content     String?
   fileUrl     String?
+  fileName    String?
+  fileSize    Int?
+  mimeType    String?
   uploadedBy  String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -66,12 +79,14 @@ model ProjectDailyLog {
   id          String   @id @default(cuid())
   projectId   String
   employeeId  String
-  date        DateTime
+  date        DateTime @default(now())
   summary     String
   hoursWorked Float?
+  category    LogCategory @default(General)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@map("project_daily_logs")
 }
@@ -219,6 +234,7 @@ enum LeaveType {
   Unpaid
   Maternity
   Paternity
+  WorkFromHome
 }
 
 enum LeaveDuration {
@@ -233,4 +249,15 @@ enum TaskPriority {
   Medium
   High
   Urgent
+}
+
+enum LogCategory {
+  General
+  Environment
+  Deployment
+  BugFix
+  Feature
+  Documentation
+  Meeting
+  Review
 }
