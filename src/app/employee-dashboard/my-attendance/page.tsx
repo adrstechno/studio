@@ -37,6 +37,8 @@ export default function MyAttendancePage() {
     const [todayAttendance, setTodayAttendance] = React.useState<AttendanceRecord | null>(null);
     const [monthlyAttendance, setMonthlyAttendance] = React.useState<AttendanceRecord[]>([]);
     const [loading, setLoading] = React.useState(false);
+    const [employeeId, setEmployeeId] = React.useState<string | null>(null);
+    const [fetchingData, setFetchingData] = React.useState(true);
 
     // Update current time every second
     React.useEffect(() => {
@@ -44,49 +46,95 @@ export default function MyAttendancePage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Mock data - Replace with actual API calls
+    // Fetch employee and attendance data
     React.useEffect(() => {
-        // Simulate today's attendance
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const fetchData = async () => {
+            if (!user?.email) return;
+            try {
+                // Get employee by email
+                const empRes = await fetch('/api/employees');
+                const employees = await empRes.json();
+                const currentEmployee = employees.find((e: { email: string }) => e.email === user.email);
 
-        setTodayAttendance({
-            id: '1',
-            date: today,
-            status: 'Present',
-            checkIn: '09:15:00',
-            checkOut: undefined,
-        });
+                if (currentEmployee) {
+                    setEmployeeId(currentEmployee.id);
 
-        // Simulate monthly attendance
-        const records: AttendanceRecord[] = [];
-        for (let i = 1; i <= 20; i++) {
-            const recordDate = new Date(2026, 0, i);
-            records.push({
-                id: `att-${i}`,
-                date: recordDate,
-                status: i % 7 === 0 ? 'OnLeave' : i % 5 === 0 ? 'Late' : 'Present',
-                checkIn: i % 7 === 0 ? undefined : `09:${String(i % 60).padStart(2, '0')}:00`,
-                checkOut: i % 7 === 0 ? undefined : `18:${String(i % 60).padStart(2, '0')}:00`,
-            });
-        }
-        setMonthlyAttendance(records);
-    }, []);
+                    // Fetch today's attendance
+                    const today = new Date();
+                    const todayStr = today.toISOString().split('T')[0];
+                    const todayRes = await fetch(`/api/attendance?employeeId=${currentEmployee.id}&date=${todayStr}`);
+                    const todayData = await todayRes.json();
+                    
+                    if (todayData.length > 0) {
+                        const record = todayData[0];
+                        setTodayAttendance({
+                            id: record.id,
+                            date: new Date(record.date),
+                            status: record.status,
+                            checkIn: record.checkIn,
+                            checkOut: record.checkOut,
+                        });
+                    }
+
+                    // Fetch monthly attendance
+                    const year = today.getFullYear();
+                    const month = today.getMonth() + 1;
+                    const monthlyRes = await fetch(`/api/attendance?employeeId=${currentEmployee.id}&year=${year}&month=${month}`);
+                    const monthlyData = await monthlyRes.json();
+                    
+                    const records = monthlyData.map((record: any) => ({
+                        id: record.id,
+                        date: new Date(record.date),
+                        status: record.status,
+                        checkIn: record.checkIn,
+                        checkOut: record.checkOut,
+                    }));
+                    setMonthlyAttendance(records);
+                }
+            } catch (error) {
+                console.error('Error fetching attendance data:', error);
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load attendance data',
+                    variant: 'destructive',
+                });
+            } finally {
+                setFetchingData(false);
+            }
+        };
+        fetchData();
+    }, [user?.email, toast]);
 
     const handlePunchIn = async () => {
+        if (!employeeId) return;
         setLoading(true);
         try {
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { hour12: false });
+            const dateString = now.toISOString().split('T')[0];
 
             // Check if late (after 9:30 AM)
             const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 30);
 
+            const res = await fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employeeId,
+                    date: dateString,
+                    status: isLate ? 'Late' : 'Present',
+                    checkIn: timeString,
+                }),
+            });
+
+            if (!res.ok) throw new Error('Failed to punch in');
+
+            const record = await res.json();
             setTodayAttendance({
-                id: '1',
-                date: new Date(),
-                status: isLate ? 'Late' : 'Present',
-                checkIn: timeString,
+                id: record.id,
+                date: new Date(record.date),
+                status: record.status,
+                checkIn: record.checkIn,
             });
 
             toast({
@@ -105,15 +153,27 @@ export default function MyAttendancePage() {
     };
 
     const handlePunchOut = async () => {
+        if (!employeeId || !todayAttendance) return;
         setLoading(true);
         try {
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { hour12: false });
 
-            setTodayAttendance(prev => prev ? {
-                ...prev,
-                checkOut: timeString,
-            } : null);
+            const res = await fetch(`/api/attendance/${todayAttendance.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    checkOut: timeString,
+                }),
+            });
+
+            if (!res.ok) throw new Error('Failed to punch out');
+
+            const record = await res.json();
+            setTodayAttendance({
+                ...todayAttendance,
+                checkOut: record.checkOut,
+            });
 
             toast({
                 title: 'Punched Out Successfully',
@@ -168,6 +228,14 @@ export default function MyAttendancePage() {
         acc[status].push(record.date);
         return acc;
     }, {} as Record<string, Date[]>);
+
+    if (fetchingData) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Clock className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <>

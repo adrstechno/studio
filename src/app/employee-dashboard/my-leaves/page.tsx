@@ -55,8 +55,23 @@ const statusConfig = {
     Rejected: { color: 'bg-red-900/20 text-red-400 border-red-400/20', icon: XCircle },
 };
 
-const leaveTypes = ['Casual', 'Sick', 'Earned', 'Unpaid', 'Maternity', 'Paternity'];
+const leaveTypes = ['Casual', 'Sick', 'Earned', 'Unpaid', 'Maternity', 'Paternity', 'WorkFromHome'];
 const leaveDurations = ['FullDay', 'HalfDay', 'FirstHalf', 'SecondHalf'];
+
+type LeaveQuota = {
+    total: number;
+    used: number;
+    remaining: number;
+};
+
+type LeaveQuotas = {
+    casual: LeaveQuota;
+    sick: LeaveQuota;
+    earned: LeaveQuota;
+    maternity: LeaveQuota;
+    paternity: LeaveQuota;
+    workFromHome: LeaveQuota;
+};
 
 export default function MyLeavesPage() {
     const auth = useAuth();
@@ -64,40 +79,10 @@ export default function MyLeavesPage() {
     const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
-    const [leaveRequests, setLeaveRequests] = React.useState<LeaveRequest[]>([
-        {
-            id: '1',
-            startDate: '2026-01-20',
-            endDate: '2026-01-22',
-            leaveType: 'Casual',
-            leaveDuration: 'FullDay',
-            reason: 'Family function',
-            status: 'Pending',
-            createdAt: '2026-01-10',
-        },
-        {
-            id: '2',
-            startDate: '2025-12-24',
-            endDate: '2025-12-26',
-            leaveType: 'Earned',
-            leaveDuration: 'FullDay',
-            reason: 'Christmas vacation',
-            status: 'Approved',
-            adminComment: 'Approved. Enjoy your holidays!',
-            createdAt: '2025-12-01',
-        },
-        {
-            id: '3',
-            startDate: '2025-11-15',
-            endDate: '2025-11-15',
-            leaveType: 'Sick',
-            leaveDuration: 'HalfDay',
-            reason: 'Medical appointment',
-            status: 'Rejected',
-            adminComment: 'Please reschedule to a less busy period.',
-            createdAt: '2025-11-10',
-        },
-    ]);
+    const [fetchingData, setFetchingData] = React.useState(true);
+    const [employeeId, setEmployeeId] = React.useState<string | null>(null);
+    const [leaveRequests, setLeaveRequests] = React.useState<LeaveRequest[]>([]);
+    const [leaveQuotas, setLeaveQuotas] = React.useState<LeaveQuotas | null>(null);
 
     const [formData, setFormData] = React.useState({
         startDate: '',
@@ -107,15 +92,56 @@ export default function MyLeavesPage() {
         reason: '',
     });
 
+    // Fetch employee and leave data
+    React.useEffect(() => {
+        const fetchData = async () => {
+            if (!user?.email) return;
+            try {
+                // Get employee by email
+                const empRes = await fetch('/api/employees');
+                const employees = await empRes.json();
+                const currentEmployee = employees.find((e: { email: string }) => e.email === user.email);
+
+                if (currentEmployee) {
+                    setEmployeeId(currentEmployee.id);
+
+                    // Fetch leave requests
+                    const leavesRes = await fetch(`/api/leave-requests?employeeId=${currentEmployee.id}`);
+                    const leavesData = await leavesRes.json();
+                    setLeaveRequests(leavesData);
+
+                    // Fetch leave quotas
+                    const quotasRes = await fetch(`/api/employees/${currentEmployee.id}/leave-quota`);
+                    const quotasData = await quotasRes.json();
+                    setLeaveQuotas(quotasData.quotas);
+                }
+            } catch (error) {
+                console.error('Error fetching leave data:', error);
+                toast({
+                    title: 'Error',
+                    description: 'Failed to load leave data',
+                    variant: 'destructive',
+                });
+            } finally {
+                setFetchingData(false);
+            }
+        };
+        fetchData();
+    }, [user?.email, toast]);
+
     // Calculate leave balance (mock data)
-    const leaveBalance = {
-        casual: { total: 12, used: 3, remaining: 9 },
-        sick: { total: 10, used: 1, remaining: 9 },
-        earned: { total: 15, used: 5, remaining: 10 },
+    const leaveBalance = leaveQuotas || {
+        casual: { total: 1, used: 0, remaining: 1 },
+        sick: { total: 2, used: 0, remaining: 2 },
+        earned: { total: 0, used: 0, remaining: 0 },
+        maternity: { total: 0, used: 0, remaining: 0 },
+        paternity: { total: 0, used: 0, remaining: 0 },
+        workFromHome: { total: 4, used: 0, remaining: 4 },
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!employeeId) return;
         setLoading(true);
 
         try {
@@ -129,13 +155,18 @@ export default function MyLeavesPage() {
                 return;
             }
 
-            const newRequest: LeaveRequest = {
-                id: Date.now().toString(),
-                ...formData,
-                status: 'Pending',
-                createdAt: new Date().toISOString(),
-            };
+            const res = await fetch('/api/leave-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    employeeId,
+                    ...formData,
+                }),
+            });
 
+            if (!res.ok) throw new Error('Failed to submit leave request');
+
+            const newRequest = await res.json();
             setLeaveRequests(prev => [newRequest, ...prev]);
             
             toast({
@@ -162,12 +193,26 @@ export default function MyLeavesPage() {
         }
     };
 
-    const handleDelete = (id: string) => {
-        setLeaveRequests(prev => prev.filter(req => req.id !== id));
-        toast({
-            title: 'Request Deleted',
-            description: 'Leave request has been deleted.',
-        });
+    const handleDelete = async (id: string) => {
+        try {
+            const res = await fetch(`/api/leave-requests/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!res.ok) throw new Error('Failed to delete');
+
+            setLeaveRequests(prev => prev.filter(req => req.id !== id));
+            toast({
+                title: 'Request Deleted',
+                description: 'Leave request has been deleted.',
+            });
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: 'Failed to delete leave request',
+                variant: 'destructive',
+            });
+        }
     };
 
     const calculateDuration = (start: string, end: string) => {
@@ -184,6 +229,14 @@ export default function MyLeavesPage() {
             rejected: leaveRequests.filter(r => r.status === 'Rejected').length,
         };
     }, [leaveRequests]);
+
+    if (fetchingData) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <Clock className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <>
@@ -351,40 +404,82 @@ export default function MyLeavesPage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Casual Leave</span>
+                                <span className="text-muted-foreground">Full Day Leave</span>
                                 <span className="font-medium">{leaveBalance.casual.remaining}/{leaveBalance.casual.total}</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                                 <div 
                                     className="h-full bg-blue-500" 
-                                    style={{ width: `${(leaveBalance.casual.remaining / leaveBalance.casual.total) * 100}%` }}
+                                    style={{ width: `${leaveBalance.casual.total > 0 ? (leaveBalance.casual.remaining / leaveBalance.casual.total) * 100 : 0}%` }}
                                 />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Sick Leave</span>
+                                <span className="text-muted-foreground">Half Day Leave</span>
                                 <span className="font-medium">{leaveBalance.sick.remaining}/{leaveBalance.sick.total}</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                                 <div 
                                     className="h-full bg-green-500" 
-                                    style={{ width: `${(leaveBalance.sick.remaining / leaveBalance.sick.total) * 100}%` }}
+                                    style={{ width: `${leaveBalance.sick.total > 0 ? (leaveBalance.sick.remaining / leaveBalance.sick.total) * 100 : 0}%` }}
                                 />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Earned Leave</span>
-                                <span className="font-medium">{leaveBalance.earned.remaining}/{leaveBalance.earned.total}</span>
+                                <span className="text-muted-foreground">Work From Home</span>
+                                <span className="font-medium">{leaveBalance.workFromHome.remaining}/{leaveBalance.workFromHome.total}</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                                 <div 
-                                    className="h-full bg-purple-500" 
-                                    style={{ width: `${(leaveBalance.earned.remaining / leaveBalance.earned.total) * 100}%` }}
+                                    className="h-full bg-orange-500" 
+                                    style={{ width: `${leaveBalance.workFromHome.total > 0 ? (leaveBalance.workFromHome.remaining / leaveBalance.workFromHome.total) * 100 : 0}%` }}
                                 />
                             </div>
                         </div>
+                        {leaveBalance.earned.total > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Earned Leave</span>
+                                    <span className="font-medium">{leaveBalance.earned.remaining}/{leaveBalance.earned.total}</span>
+                                </div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-purple-500" 
+                                        style={{ width: `${(leaveBalance.earned.remaining / leaveBalance.earned.total) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {leaveBalance.maternity.total > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Maternity Leave</span>
+                                    <span className="font-medium">{leaveBalance.maternity.remaining}/{leaveBalance.maternity.total}</span>
+                                </div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-pink-500" 
+                                        style={{ width: `${(leaveBalance.maternity.remaining / leaveBalance.maternity.total) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {leaveBalance.paternity.total > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Paternity Leave</span>
+                                    <span className="font-medium">{leaveBalance.paternity.remaining}/{leaveBalance.paternity.total}</span>
+                                </div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-cyan-500" 
+                                        style={{ width: `${(leaveBalance.paternity.remaining / leaveBalance.paternity.total) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

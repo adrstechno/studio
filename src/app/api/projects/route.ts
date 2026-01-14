@@ -39,7 +39,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, clientName, description, status, startDate, endDate } = body;
+        const { name, clientName, description, status, startDate, endDate, githubRepo, techStack } = body;
 
         if (!name) {
             return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
                 status: status || 'OnTrack',
                 startDate: startDate ? new Date(startDate) : null,
                 endDate: endDate ? new Date(endDate) : null,
+                githubRepo,
+                techStack,
                 progress: 0,
             },
             include: {
