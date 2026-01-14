@@ -26,29 +26,38 @@ model Employee {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  status    ProjectStatus @default(OnTrack)
-  progress  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tasks     Task[]
+  id          String        @id @default(cuid())
+  name        String        @unique
+  clientName  String?
+  status      ProjectStatus @default(OnTrack)
+  progress    Int           @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tasks       Task[]
 
   @@map("projects")
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  status      TaskStatus @default(ToDo)
-  assigneeId  String
-  projectId   String
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  assignee    Employee   @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
-  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  submissions TaskSubmission[]
+  id             String             @id @default(cuid())
+  title          String
+  description    String?
+  status         TaskStatus         @default(ToDo)
+  priority       TaskPriority       @default(Medium)
+  dueDate        DateTime?
+  attachments    String?
+  approvalStatus TaskApprovalStatus @default(Approved)
+  requestedBy    String?
+  assigneeId     String
+  projectId      String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  assignee       Employee           @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+  project        Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  submissions    TaskSubmission[]
 
   @@map("tasks")
 }
@@ -82,15 +91,17 @@ model Attendance {
 }
 
 model LeaveRequest {
-  id         String      @id @default(cuid())
-  employeeId String
-  startDate  DateTime
-  endDate    DateTime
-  reason     String?
-  status     LeaveStatus @default(Pending)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  employeeId    String
+  startDate     DateTime
+  endDate       DateTime
+  leaveType     String      @default("Casual")
+  reason        String?
+  status        LeaveStatus @default(Pending)
+  adminComment  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@map("leave_requests")
 }
@@ -115,6 +126,12 @@ enum TaskStatus {
   Done
 }
 
+enum TaskApprovalStatus {
+  Pending
+  Approved
+  Rejected
+}
+
 enum AttendanceStatus {
   Present
   Absent
@@ -127,4 +144,11 @@ enum LeaveStatus {
   Pending
   Approved
   Rejected
+}
+
+enum TaskPriority {
+  Low
+  Medium
+  High
+  Urgent
 }
