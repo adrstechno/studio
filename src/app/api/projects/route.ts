@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
 // GET all projects with team members
@@ -32,5 +32,37 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching projects:', error);
         return NextResponse.json({ error: 'Failed to fetch projects' }, { status: 500 });
+    }
+}
+
+// POST - Create new project
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { name, clientName, description, status, startDate, endDate } = body;
+
+        if (!name) {
+            return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
+        }
+
+        const project = await db.project.create({
+            data: {
+                name,
+                clientName,
+                description,
+                status: status || 'OnTrack',
+                startDate: startDate ? new Date(startDate) : null,
+                endDate: endDate ? new Date(endDate) : null,
+                progress: 0,
+            },
+            include: {
+                tasks: true,
+            },
+        });
+
+        return NextResponse.json({ ...project, team: [] }, { status: 201 });
+    } catch (error) {
+        console.error('Error creating project:', error);
+        return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
     }
 }

@@ -1,47 +1,144 @@
+'use client';
+
+import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { employees, tasks, type Task } from '@/lib/data';
-import { PlusCircle, GripVertical } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PageHeader } from '@/components/page-header';
+import { useToast } from '@/hooks/use-toast';
+import {
+  PlusCircle,
+  GripVertical,
+  Search,
+  Filter,
+  Calendar as CalendarIcon,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  LayoutList,
+  LayoutGrid as LayoutGridIcon,
+  LoaderCircle,
+  MessageSquare,
+  Paperclip,
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-type TaskColumnProps = {
-  title: Task['status'];
-  tasks: Task[];
+type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'ToDo' | 'InProgress' | 'Done';
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  dueDate?: string;
+  approvalStatus: 'Pending' | 'Approved' | 'Rejected';
+  assigneeId: string;
+  projectId: string;
+  assignee?: { id: string; name: string; email: string; avatarUrl?: string };
+  project?: { id: string; name: string };
+  createdAt: string;
+};
+
+type Employee = {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+};
+
+type Project = {
+  id: string;
+  name: string;
 };
 
 const statusConfig = {
-    "To Do": {
-        indicator: "bg-red-500",
-        label: "To Do"
-    },
-    "In Progress": {
-        indicator: "bg-yellow-500",
-        label: "In Progress"
-    },
-    "Done": {
-        indicator: "bg-green-500",
-        label: "Done"
-    }
-}
+  ToDo: { label: 'To Do', color: 'bg-red-500', textColor: 'text-red-600', bgColor: 'bg-red-500/10' },
+  InProgress: { label: 'In Progress', color: 'bg-yellow-500', textColor: 'text-yellow-600', bgColor: 'bg-yellow-500/10' },
+  Done: { label: 'Done', color: 'bg-green-500', textColor: 'text-green-600', bgColor: 'bg-green-500/10' },
+};
 
-function TaskCard({ task }: { task: Task }) {
-  const assignee = employees.find((e) => e.id === task.assigneeId);
+const priorityConfig = {
+  Low: { label: 'Low', color: 'bg-blue-500/10 text-blue-600 border-blue-200' },
+  Medium: { label: 'Medium', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-200' },
+  High: { label: 'High', color: 'bg-orange-500/10 text-orange-600 border-orange-200' },
+  Urgent: { label: 'Urgent', color: 'bg-red-500/10 text-red-600 border-red-200' },
+};
+
+function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
+  const config = statusConfig[task.status];
+  const priorityConf = priorityConfig[task.priority];
+  
   return (
-    <Card className="hover:bg-muted/50 transition-all duration-200 group">
+    <Card className="hover:bg-muted/50 transition-all duration-200 group cursor-pointer" onClick={onClick}>
       <CardContent className="p-4 flex items-center gap-4">
         <GripVertical className="h-5 w-5 text-muted-foreground/50 cursor-grab transition-colors group-hover:text-muted-foreground" />
         <div className="flex-1 space-y-2">
-          <p className="font-medium leading-snug">{task.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-medium leading-snug">{task.title}</p>
+            <div className="flex gap-1">
+              <Badge variant="outline" className={cn('font-normal text-xs', priorityConf.color)}>
+                {task.priority}
+              </Badge>
+              {task.approvalStatus === 'Pending' && (
+                <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-200">
+                  Pending
+                </Badge>
+              )}
+            </div>
+          </div>
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-             <Badge variant="outline" className="font-normal">{task.projectId}</Badge>
-            {assignee && (
-              <Avatar className="h-7 w-7">
-                <AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
-                <AvatarFallback>{assignee.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-            )}
+            <Badge variant="outline" className="font-normal">{task.project?.name}</Badge>
+            <div className="flex items-center gap-2">
+              {task.dueDate && (
+                <span className="text-xs flex items-center gap-1">
+                  <CalendarIcon className="h-3 w-3" />
+                  {format(new Date(task.dueDate), 'MMM dd')}
+                </span>
+              )}
+              {task.assignee && (
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
+                  <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -49,45 +146,492 @@ function TaskCard({ task }: { task: Task }) {
   );
 }
 
-function TaskColumn({ title, tasks }: TaskColumnProps) {
+function TaskColumn({ title, tasks, onTaskClick }: { title: Task['status']; tasks: Task[]; onTaskClick: (task: Task) => void }) {
   const config = statusConfig[title];
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <span className={`h-2.5 w-2.5 rounded-full ${config.indicator}`} />
+        <span className={`h-2.5 w-2.5 rounded-full ${config.color}`} />
         <h2 className="font-headline font-semibold tracking-wide text-lg">{config.label}</h2>
-        <span className="ml-auto text-muted-foreground text-sm font-medium bg-muted/50 h-6 w-6 flex items-center justify-center rounded-full">{tasks.length}</span>
+        <span className="ml-auto text-muted-foreground text-sm font-medium bg-muted/50 h-6 w-6 flex items-center justify-center rounded-full">
+          {tasks.length}
+        </span>
       </div>
       <div className="flex flex-col gap-3 h-full">
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
         ))}
+        {tasks.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground text-sm">No tasks</div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function TasksPage() {
-  const todoTasks = tasks.filter((t) => t.status === 'To Do');
-  const inProgressTasks = tasks.filter((t) => t.status === 'In Progress');
-  const doneTasks = tasks.filter((t) => t.status === 'Done');
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [employees, setEmployees] = React.useState<Employee[]>([]);
+  const [projects, setProjects] = React.useState<Project[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
+  const [viewMode, setViewMode] = React.useState<'board' | 'list'>('board');
+  
+  // Filters
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = React.useState<string>('all');
+  const [dueDateFilter, setDueDateFilter] = React.useState<string>('all');
+  
+  // Create form
+  const [newTask, setNewTask] = React.useState({
+    title: '',
+    description: '',
+    priority: 'Medium' as Task['priority'],
+    dueDate: undefined as Date | undefined,
+    status: 'ToDo' as Task['status'],
+    assigneeId: '',
+    projectId: '',
+  });
+  const [creating, setCreating] = React.useState(false);
+  
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [tasksRes, employeesRes, projectsRes] = await Promise.all([
+        fetch('/api/tasks'),
+        fetch('/api/employees'),
+        fetch('/api/projects'),
+      ]);
+      
+      const tasksData = await tasksRes.json();
+      const employeesData = await employeesRes.json();
+      const projectsData = await projectsRes.json();
+      
+      setTasks(tasksData);
+      setEmployees(employeesData);
+      setProjects(projectsData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({ title: 'Error', description: 'Failed to load tasks', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTask.title || !newTask.assigneeId || !newTask.projectId) {
+      toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
+      return;
+    }
+    
+    setCreating(true);
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newTask,
+          dueDate: newTask.dueDate?.toISOString(),
+        }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to create task');
+      
+      const createdTask = await res.json();
+      setTasks([createdTask, ...tasks]);
+      setCreateDialogOpen(false);
+      setNewTask({
+        title: '',
+        description: '',
+        priority: 'Medium',
+        dueDate: undefined,
+        status: 'ToDo',
+        assigneeId: '',
+        projectId: '',
+      });
+      toast({ title: 'Success', description: 'Task created successfully' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to create task', variant: 'destructive' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedTask) return;
+    
+    try {
+      const res = await fetch(`/api/tasks/${selectedTask.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newComment, type: 'comment' }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to add comment');
+      
+      const comment = await res.json();
+      setSelectedTask({
+        ...selectedTask,
+        comments: [...(selectedTask.comments || []), comment],
+      });
+      setNewComment('');
+      toast({ title: 'Success', description: 'Comment added' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to add comment', variant: 'destructive' });
+    }
+  };
+
+  // Filter tasks
+  const filteredTasks = tasks.filter((task) => {
+    if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (statusFilter !== 'all' && task.status !== statusFilter) return false;
+    if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
+    
+    if (dueDateFilter !== 'all' && task.dueDate) {
+      const dueDate = new Date(task.dueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (dueDateFilter === 'overdue' && dueDate >= today) return false;
+      if (dueDateFilter === 'today' && dueDate.toDateString() !== today.toDateString()) return false;
+      if (dueDateFilter === 'week') {
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+        if (dueDate < today || dueDate > weekFromNow) return false;
+      }
+    }
+    
+    return true;
+  });
+
+  const todoTasks = filteredTasks.filter((t) => t.status === 'ToDo');
+  const inProgressTasks = filteredTasks.filter((t) => t.status === 'InProgress');
+  const doneTasks = filteredTasks.filter((t) => t.status === 'Done');
+
+  if (loading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <>
-      <PageHeader
-        title="Task Board"
-        description="Organize and track your team's work."
-      >
-        <Button>
-          <PlusCircle />
-          New Task
-        </Button>
+      <PageHeader title="Task Board" description="Organize and track your team's work.">
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={() => setViewMode(viewMode === 'board' ? 'list' : 'board')}>
+            {viewMode === 'board' ? <LayoutList className="h-4 w-4" /> : <LayoutGridIcon className="h-4 w-4" />}
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <PlusCircle className="h-4 w-4 mr-2" />
+            New Task
+          </Button>
+        </div>
       </PageHeader>
-      <div className="grid md:grid-cols-3 gap-6 items-start">
-        <TaskColumn title="To Do" tasks={todoTasks} />
-        <TaskColumn title="In Progress" tasks={inProgressTasks} />
-        <TaskColumn title="Done" tasks={doneTasks} />
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="ToDo">To Do</SelectItem>
+            <SelectItem value="InProgress">In Progress</SelectItem>
+            <SelectItem value="Done">Done</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Priority" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priority</SelectItem>
+            <SelectItem value="Low">Low</SelectItem>
+            <SelectItem value="Medium">Medium</SelectItem>
+            <SelectItem value="High">High</SelectItem>
+            <SelectItem value="Urgent">Urgent</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={dueDateFilter} onValueChange={setDueDateFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Due Date" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Dates</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="week">This Week</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Board View */}
+      {viewMode === 'board' && (
+        <div className="grid md:grid-cols-3 gap-6 items-start">
+          <TaskColumn title="ToDo" tasks={todoTasks} onTaskClick={setSelectedTask} />
+          <TaskColumn title="InProgress" tasks={inProgressTasks} onTaskClick={setSelectedTask} />
+          <TaskColumn title="Done" tasks={doneTasks} onTaskClick={setSelectedTask} />
+        </div>
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Assignee</TableHead>
+                <TableHead>Project</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTasks.map((task) => {
+                const priorityConf = priorityConfig[task.priority];
+                const statusConf = statusConfig[task.status];
+                return (
+                  <TableRow key={task.id} className="cursor-pointer" onClick={() => setSelectedTask(task)}>
+                    <TableCell className="font-medium">{task.title}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn('text-xs', priorityConf.color)}>
+                        {task.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {task.dueDate ? format(new Date(task.dueDate), 'MMM dd, yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn('text-xs', statusConf.textColor)}>
+                        {statusConf.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={task.assignee?.avatarUrl} />
+                          <AvatarFallback>{task.assignee?.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm">{task.assignee?.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{task.project?.name}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      {/* Create Task Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>Add a new task and assign it to a team member.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="title">Title *</Label>
+              <Input
+                id="title"
+                value={newTask.title}
+                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                placeholder="Task title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={newTask.description}
+                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                placeholder="Task description"
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Priority *</Label>
+                <Select value={newTask.priority} onValueChange={(v) => setNewTask({ ...newTask, priority: v as Task['priority'] })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Due Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn('justify-start text-left font-normal', !newTask.dueDate && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {newTask.dueDate ? format(newTask.dueDate, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={newTask.dueDate} onSelect={(date) => setNewTask({ ...newTask, dueDate: date })} initialFocus />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Status *</Label>
+                <Select value={newTask.status} onValueChange={(v) => setNewTask({ ...newTask, status: v as Task['status'] })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ToDo">To Do</SelectItem>
+                    <SelectItem value="InProgress">In Progress</SelectItem>
+                    <SelectItem value="Done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Assigned To *</Label>
+                <Select value={newTask.assigneeId} onValueChange={(v) => setNewTask({ ...newTask, assigneeId: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Project *</Label>
+              <Select value={newTask.projectId} onValueChange={(v) => setNewTask({ ...newTask, projectId: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((proj) => (
+                    <SelectItem key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTask} disabled={creating}>
+              {creating ? <LoaderCircle className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+              Create Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Details Sheet */}
+      <Sheet open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          {selectedTask && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{selectedTask.title}</SheetTitle>
+                <SheetDescription>Task details and activity</SheetDescription>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline" className={cn('text-xs', priorityConfig[selectedTask.priority].color)}>
+                    {selectedTask.priority}
+                  </Badge>
+                  <Badge variant="outline" className={cn('text-xs', statusConfig[selectedTask.status].textColor)}>
+                    {statusConfig[selectedTask.status].label}
+                  </Badge>
+                </div>
+              </SheetHeader>
+              
+              <div className="mt-6 space-y-6">
+                {/* Description */}
+                <div>
+                  <h4 className="font-semibold mb-2">Description</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTask.description || 'No description provided'}
+                  </p>
+                </div>
+
+                {/* Details */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-semibold mb-2 text-sm">Assignee</h4>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={selectedTask.assignee?.avatarUrl} />
+                        <AvatarFallback>{selectedTask.assignee?.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{selectedTask.assignee?.name}</p>
+                        <p className="text-xs text-muted-foreground">{selectedTask.assignee?.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2 text-sm">Project</h4>
+                    <Badge variant="outline">{selectedTask.project?.name}</Badge>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2 text-sm">Due Date</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedTask.dueDate ? format(new Date(selectedTask.dueDate), 'PPP') : 'No due date'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2 text-sm">Created</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(selectedTask.createdAt), 'PPP')}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Comments & Activity */}
+                <div>
+                  <h4 className="font-semibold mb-3">Comments & Activity</h4>
+                  <div className="space-y-3 mb-4">
+                    <p className="text-sm text-muted-foreground">Comments feature coming soon</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

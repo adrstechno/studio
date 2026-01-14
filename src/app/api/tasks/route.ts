@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { title, description, assigneeId, projectId, status } = body;
+        const { title, description, assigneeId, projectId, status, priority, dueDate, attachments, approvalStatus, requestedBy } = body;
 
         if (!title || !assigneeId || !projectId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
                 assigneeId,
                 projectId,
                 status: status || 'ToDo',
+                priority: priority || 'Medium',
+                dueDate: dueDate ? new Date(dueDate) : null,
+                attachments,
+                approvalStatus: approvalStatus || 'Approved',
+                requestedBy,
             },
             include: {
                 assignee: true,

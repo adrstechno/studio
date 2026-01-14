@@ -42,6 +42,8 @@ import {
   Settings,
   LifeBuoy,
   FileText,
+  FolderKanban,
+  CheckSquare,
 } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { useUser } from '@/firebase/auth/use-user';
@@ -52,7 +54,9 @@ import Logo from '../../components/logo';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { href: '/employees', label: 'Employees', icon: Users },
+  { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/tasks', label: 'Tasks', icon: ListTodo },
+  { href: '/task-approvals', label: 'Task Approvals', icon: CheckSquare },
   { href: '/attendance', label: 'Attendance', icon: CalendarCheck },
   { href: '/leaves', label: 'Leave Requests', icon: FileText },
   { href: '/summarizer', label: 'Summarizer', icon: BotMessageSquare },
