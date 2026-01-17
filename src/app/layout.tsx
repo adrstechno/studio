@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import { LoadingProvider, GlobalLoadingIndicator } from '@/hooks/use-loading';
 
 export const metadata: Metadata = {
   title: 'ADRS',
@@ -28,9 +29,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <FirebaseClientProvider>
-            {children}
-          </FirebaseClientProvider>
+          <LoadingProvider>
+            <FirebaseClientProvider>
+              {children}
+              <GlobalLoadingIndicator />
+            </FirebaseClientProvider>
+          </LoadingProvider>
           <Toaster />
         </ThemeProvider>
       </body>
