@@ -23,6 +23,8 @@ import { useAuth } from '@/firebase';
 import { useUser } from '@/firebase/auth/use-user';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useLoading, LoadingButton, LoadingOverlay } from '@/hooks/use-loading';
+import { useApiClient } from '@/lib/api-client';
 import {
     Sheet,
     SheetContent,
@@ -86,11 +88,11 @@ export default function EmployeeTasksPage() {
     const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
     const [selfieUrl, setSelfieUrl] = React.useState('');
     const [notes, setNotes] = React.useState('');
-    const [submitting, setSubmitting] = React.useState(false);
     
     // Filters
     const [searchQuery, setSearchQuery] = React.useState('');
     const [priorityFilter, setPriorityFilter] = React.useState<string>('all');
+    const [projectFilter, setProjectFilter] = React.useState<string>('all');
     
     // Request task form
     const [newTaskRequest, setNewTaskRequest] = React.useState({
@@ -100,77 +102,80 @@ export default function EmployeeTasksPage() {
         dueDate: undefined as Date | undefined,
         projectId: '',
     });
-    const [requesting, setRequesting] = React.useState(false);
     
     const { toast } = useToast();
     const auth = useAuth();
     const { user } = useUser(auth);
+    const { isLoading } = useLoading();
     const [employeeId, setEmployeeId] = React.useState<string | null>(null);
     const [projectName, setProjectName] = React.useState<string>('');
+    const api = useApiClient();
 
     // Fetch employee data and tasks
     React.useEffect(() => {
         const fetchData = async () => {
             if (!user?.email) return;
             try {
-                // Get employee by email
-                const empRes = await fetch('/api/employees');
-                const employees = await empRes.json();
-                const currentEmployee = employees.find((e: { email: string }) => e.email === user.email);
+                // Get employee data and their projects/tasks using the new endpoint
+                const empRes = await fetch(`/api/employees/me?email=${encodeURIComponent(user.email)}`);
+                if (!empRes.ok) {
+                    throw new Error('Failed to fetch employee data');
+                }
+                const employeeData = await empRes.json();
+                
+                setEmployeeId(employeeData.employee.id);
+                setProjectName(employeeData.employee.project);
 
-                if (currentEmployee) {
-                    setEmployeeId(currentEmployee.id);
-                    setProjectName(currentEmployee.project);
+                // Get all tasks for this employee across all projects
+                const tasksRes = await fetch(`/api/tasks?assigneeId=${employeeData.employee.id}`);
+                const tasksData = await tasksRes.json();
+                setTasks(Array.isArray(tasksData) ? tasksData : []);
 
-                    // Fetch tasks for this employee
-                    const tasksRes = await fetch(`/api/tasks?assigneeId=${currentEmployee.id}`);
-                    const tasksData = await tasksRes.json();
-                    setTasks(tasksData);
+                // Set projects from employee data
+                setProjects(employeeData.projects.map((p: any) => ({ id: p.id, name: p.name })));
 
-                    // Fetch team members
-                    const teamRes = await fetch(`/api/projects/${encodeURIComponent(currentEmployee.project)}/team`);
-                    const teamData = await teamRes.json();
-                    setTeam(teamData);
-
-                    // Fetch all projects
-                    const projectsRes = await fetch('/api/projects');
-                    const projectsData = await projectsRes.json();
-                    setProjects(projectsData);
+                // Get team members from primary project
+                if (employeeData.projects.length > 0) {
+                    const primaryProject = employeeData.projects.find((p: any) => p.isPrimary);
+                    if (primaryProject && primaryProject.team) {
+                        setTeam(primaryProject.team);
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
+                toast({ 
+                    title: 'Error', 
+                    description: 'Failed to load your tasks. Please try refreshing the page.',
+                    variant: 'destructive' 
+                });
             } finally {
                 setLoading(false);
             }
         };
         fetchData();
-    }, [user?.email]);
+    }, [user?.email, toast]);
 
     const handleSubmitTask = async () => {
         if (!selectedTask || !employeeId) return;
-        setSubmitting(true);
-        try {
-            const res = await fetch(`/api/tasks/${selectedTask.id}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employeeId, selfieUrl, notes }),
-            });
-            if (!res.ok) throw new Error('Failed to submit');
-
-            // Update local state
-            setTasks((prev) => prev.map((t) =>
-                t.id === selectedTask.id ? { ...t, status: 'Done' as const } : t
-            ));
-
-            toast({ title: 'Task Submitted!', description: 'Your work has been recorded.' });
-            setSubmitDialogOpen(false);
-            setSelfieUrl('');
-            setNotes('');
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to submit task', variant: 'destructive' });
-        } finally {
-            setSubmitting(false);
-        }
+        
+        const result = await api.post(
+            `/api/tasks/${selectedTask.id}/submit`,
+            { employeeId, selfieUrl, notes },
+            {
+                loadingKey: 'submit-task',
+                successMessage: 'Task submitted successfully!',
+                showSuccessToast: true,
+                onSuccess: () => {
+                    // Update local state
+                    setTasks((prev) => prev.map((t) =>
+                        t.id === selectedTask.id ? { ...t, status: 'Done' as const } : t
+                    ));
+                    setSubmitDialogOpen(false);
+                    setSelfieUrl('');
+                    setNotes('');
+                }
+            }
+        );
     };
 
     const handleRequestTask = async () => {
@@ -179,43 +184,51 @@ export default function EmployeeTasksPage() {
             return;
         }
         
-        setRequesting(true);
-        try {
-            const res = await fetch('/api/tasks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...newTaskRequest,
-                    dueDate: newTaskRequest.dueDate?.toISOString(),
-                    assigneeId: employeeId,
-                    projectId: newTaskRequest.projectId,
-                    status: 'ToDo',
-                    approvalStatus: 'Pending',
-                    requestedBy: employeeId,
-                }),
-            });
-            
-            if (!res.ok) throw new Error('Failed to request task');
-            
-            const createdTask = await res.json();
-            setTasks([createdTask, ...tasks]);
-            setRequestTaskOpen(false);
-            setNewTaskRequest({
-                title: '',
-                description: '',
-                priority: 'Medium',
-                dueDate: undefined,
-                projectId: '',
-            });
-            toast({ 
-                title: 'Task Requested!', 
-                description: 'Your task request has been sent to admin for approval.' 
-            });
-        } catch (error) {
-            toast({ title: 'Error', description: 'Failed to request task', variant: 'destructive' });
-        } finally {
-            setRequesting(false);
-        }
+        const result = await api.post(
+            '/api/tasks',
+            {
+                ...newTaskRequest,
+                dueDate: newTaskRequest.dueDate?.toISOString(),
+                assigneeId: employeeId,
+                projectId: newTaskRequest.projectId,
+                status: 'ToDo',
+                approvalStatus: 'Pending',
+                requestedBy: employeeId,
+            },
+            {
+                loadingKey: 'request-task',
+                successMessage: 'Task request sent to admin for approval!',
+                showSuccessToast: true,
+                onSuccess: (createdTask) => {
+                    setTasks([createdTask, ...tasks]);
+                    setRequestTaskOpen(false);
+                    setNewTaskRequest({
+                        title: '',
+                        description: '',
+                        priority: 'Medium',
+                        dueDate: undefined,
+                        projectId: '',
+                    });
+                }
+            }
+        );
+    };
+
+    const handleUpdateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
+        const result = await api.put(
+            `/api/tasks/${taskId}`,
+            { status: newStatus },
+            {
+                loadingKey: `update-task-${taskId}`,
+                successMessage: `Task moved to ${statusConfig[newStatus].label}`,
+                showSuccessToast: true,
+                onSuccess: () => {
+                    setTasks(prev => prev.map(task => 
+                        task.id === taskId ? { ...task, status: newStatus } : task
+                    ));
+                }
+            }
+        );
     };
 
     const tasksByStatus = {
@@ -228,6 +241,7 @@ export default function EmployeeTasksPage() {
     const filteredTasks = tasks.filter((task) => {
         if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
+        if (projectFilter !== 'all' && task.project?.name !== projectFilter) return false;
         return true;
     });
 
@@ -246,8 +260,8 @@ export default function EmployeeTasksPage() {
     }
 
     return (
-        <>
-            <PageHeader title="My Tasks" description={`Tasks assigned to you in ${projectName}`}>
+        <LoadingOverlay loading={loading} loadingText="Loading your tasks...">
+            <PageHeader title="My Tasks" description={`Manage your tasks across all projects`}>
                 <div className="flex gap-2">
                     <Button onClick={() => setRequestTaskOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" />
@@ -271,6 +285,19 @@ export default function EmployeeTasksPage() {
                         className="pl-9"
                     />
                 </div>
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                    <SelectTrigger className="w-[150px]">
+                        <SelectValue placeholder="Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Projects</SelectItem>
+                        {projects.map((project) => (
+                            <SelectItem key={project.id} value={project.name}>
+                                {project.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
                     <SelectTrigger className="w-[150px]">
                         <SelectValue placeholder="Priority" />
@@ -350,28 +377,57 @@ export default function EmployeeTasksPage() {
                                                 </div>
                                             )}
                                             <div className="flex items-center justify-between gap-2">
-                                                <Badge variant="outline" className="text-xs">{task.project?.name || projectName}</Badge>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => { setSelectedTask(task); setTaskDetailsOpen(true); }}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                    {status !== 'Done' && (
+                                                <Badge variant="outline" className="text-xs">{task.project?.name || 'Unknown Project'}</Badge>
+                                                <div className="flex gap-1">
+                                                    {/* Status Update Buttons */}
+                                                    {task.status === 'ToDo' && (
+                                                        <LoadingButton
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleUpdateTaskStatus(task.id, 'InProgress')}
+                                                            className="text-xs px-2 py-1 h-7"
+                                                            loading={isLoading(`update-task-${task.id}`)}
+                                                            loadingText="Starting..."
+                                                        >
+                                                            Start
+                                                        </LoadingButton>
+                                                    )}
+                                                    {task.status === 'InProgress' && (
+                                                        <>
+                                                            <LoadingButton
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => handleUpdateTaskStatus(task.id, 'ToDo')}
+                                                                className="text-xs px-2 py-1 h-7"
+                                                                loading={isLoading(`update-task-${task.id}`)}
+                                                                loadingText="Pausing..."
+                                                            >
+                                                                Pause
+                                                            </LoadingButton>
+                                                            <LoadingButton
+                                                                size="sm"
+                                                                onClick={() => { setSelectedTask(task); setSubmitDialogOpen(true); }}
+                                                                className="text-xs px-2 py-1 h-7"
+                                                            >
+                                                                <Camera className="h-3 w-3 mr-1" />
+                                                                Submit
+                                                            </LoadingButton>
+                                                        </>
+                                                    )}
+                                                    {task.status !== 'Done' && (
                                                         <Button
                                                             size="sm"
-                                                            onClick={() => { setSelectedTask(task); setSubmitDialogOpen(true); }}
+                                                            variant="outline"
+                                                            onClick={() => { setSelectedTask(task); setTaskDetailsOpen(true); }}
+                                                            className="text-xs px-2 py-1 h-7"
                                                         >
-                                                            <Camera className="h-4 w-4 mr-1" />
-                                                            Submit
+                                                            <Eye className="h-3 w-3" />
                                                         </Button>
                                                     )}
-                                                    {status === 'Done' && task.submissions?.[0]?.selfieUrl && (
-                                                        <Avatar className="h-8 w-8">
+                                                    {task.status === 'Done' && task.submissions?.[0]?.selfieUrl && (
+                                                        <Avatar className="h-7 w-7">
                                                             <AvatarImage src={task.submissions[0].selfieUrl} />
-                                                            <AvatarFallback>✓</AvatarFallback>
+                                                            <AvatarFallback className="text-xs">✓</AvatarFallback>
                                                         </Avatar>
                                                     )}
                                                 </div>
@@ -425,10 +481,14 @@ export default function EmployeeTasksPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setSubmitDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSubmitTask} disabled={submitting}>
-                            {submitting ? <LoaderCircle className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                        <LoadingButton 
+                            onClick={handleSubmitTask} 
+                            loading={isLoading('submit-task')}
+                            loadingText="Submitting..."
+                        >
+                            <CheckCircle className="h-4 w-4 mr-2" />
                             Submit Task
-                        </Button>
+                        </LoadingButton>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -534,10 +594,15 @@ export default function EmployeeTasksPage() {
                         <Button variant="outline" onClick={() => setRequestTaskOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleRequestTask} disabled={requesting}>
-                            {requesting ? <LoaderCircle className="h-4 w-4 animate-spin mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+                        <LoadingButton 
+                            onClick={handleRequestTask} 
+                            disabled={!newTaskRequest.title || !newTaskRequest.projectId}
+                            loading={isLoading('request-task')}
+                            loadingText="Requesting..."
+                        >
+                            <PlusCircle className="h-4 w-4 mr-2" />
                             Request Task
-                        </Button>
+                        </LoadingButton>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -657,6 +722,6 @@ export default function EmployeeTasksPage() {
                     )}
                 </SheetContent>
             </Sheet>
-        </>
+        </LoadingOverlay>
     );
 }
