@@ -15,7 +15,9 @@ model Employee {
   adrsId              String?           @unique  // ADRS Employee ID (manually assigned)
   avatarUrl           String?
   role                Role              @default(Developer)
-  project             String            @default("Unassigned")
+  project             String            @default("Unassigned")  // Primary project (kept for backward compatibility)
+  projects            String?           // JSON array of project names ["Project1", "Project2"]
+  isActive            Boolean           @default(true)  // Employee active/deactivated status
   enrollmentDate      DateTime          @default(now())
   casualLeaveQuota    Int               @default(1)
   sickLeaveQuota      Int               @default(2)
@@ -175,6 +177,7 @@ enum Role {
   Manager
   QA
   Admin
+  TeamLead
 }
 
 enum ProjectStatus {
