@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// POST - Assign project to employee
+// POST - Assign project(s) to employee
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -13,24 +13,80 @@ export async function POST(
         const buffer = await request.arrayBuffer();
         const body = JSON.parse(new TextDecoder().decode(buffer));
         
-        const { project } = body;
+        const { project, projects } = body;
 
-        if (!project) {
-            return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
+        if (!project && (!projects || projects.length === 0)) {
+            return NextResponse.json({ error: 'Project name or projects array is required' }, { status: 400 });
         }
 
-        // Verify the project exists
-        const projectExists = await db.project.findUnique({
-            where: { name: project },
+        // Handle multiple projects
+        let projectsToAssign: string[] = [];
+        let primaryProject = '';
+
+        if (projects && Array.isArray(projects) && projects.length > 0) {
+            // Multiple projects provided
+            projectsToAssign = projects;
+            primaryProject = projects[0]; // First project is primary
+        } else if (project) {
+            // Single project provided (backward compatibility)
+            projectsToAssign = [project];
+            primaryProject = project;
+        }
+
+        // Verify all projects exist
+        for (const projectName of projectsToAssign) {
+            const projectExists = await db.project.findUnique({
+                where: { name: projectName },
+            });
+
+            if (!projectExists) {
+                return NextResponse.json({ error: `Project "${projectName}" not found` }, { status: 404 });
+            }
+        }
+
+        // Check if there's an existing team lead for this primary project
+        const existingTeamLead = await db.employee.findFirst({
+            where: {
+                project: primaryProject,
+                role: 'TeamLead',
+                id: { not: id }, // Exclude current employee
+            },
         });
 
-        if (!projectExists) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        // Get current employee to check their current state
+        const currentEmployee = await db.employee.findUnique({
+            where: { id },
+        });
+
+        if (!currentEmployee) {
+            return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
         }
 
+        // Determine the new role based on assignment
+        let newRole = currentEmployee.role;
+        
+        // If assigning as primary project and they're not already a TeamLead of another project
+        if (primaryProject && primaryProject !== 'Unassigned') {
+            // If there's an existing TeamLead for this project, demote them
+            if (existingTeamLead) {
+                await db.employee.update({
+                    where: { id: existingTeamLead.id },
+                    data: { role: 'Developer' },
+                });
+            }
+            
+            // Make this employee the TeamLead of the primary project
+            newRole = 'TeamLead';
+        }
+
+        // Update employee with projects and role
         const employee = await db.employee.update({
             where: { id },
-            data: { project },
+            data: { 
+                project: primaryProject, // Primary project for backward compatibility
+                projects: JSON.stringify(projectsToAssign), // All projects as JSON array
+                role: newRole, // Assign appropriate role
+            },
         });
 
         return NextResponse.json(employee);
