@@ -111,7 +111,7 @@ export default function DashboardPage() {
       />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card className="relative transition-all hover:shadow-lg hover:-translate-y-1">
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
             <Users className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
@@ -119,9 +119,7 @@ export default function DashboardPage() {
             <div className="text-4xl font-bold">{stats.totalEmployees}</div>
             <p className="text-xs text-muted-foreground">Active team members</p>
           </CardContent>
-           <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8">
-                <ArrowUpRight className="h-4 w-4" />
-            </Button>
+
         </Card>
         <Card className="relative transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -132,9 +130,7 @@ export default function DashboardPage() {
             <div className="text-4xl font-bold">{stats.totalProjects}</div>
             <p className="text-xs text-muted-foreground">{stats.completedProjects} completed</p>
           </CardContent>
-           <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8">
-                <ArrowUpRight className="h-4 w-4" />
-            </Button>
+
         </Card>
         <Card className="relative transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -145,9 +141,7 @@ export default function DashboardPage() {
             <div className="text-4xl font-bold">{stats.inProgressTasks}</div>
             <p className="text-xs text-muted-foreground">{stats.todoTasks} pending</p>
           </CardContent>
-           <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8">
-                <ArrowUpRight className="h-4 w-4" />
-            </Button>
+
         </Card>
         <Card className="relative transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -158,9 +152,7 @@ export default function DashboardPage() {
             <div className="text-4xl font-bold">+{stats.completedTasks}</div>
             <p className="text-xs text-muted-foreground">Successfully finished</p>
           </CardContent>
-           <Button variant="ghost" size="icon" className="absolute top-4 right-4 h-8 w-8">
-                <ArrowUpRight className="h-4 w-4" />
-            </Button>
+
         </Card>
       </div>
 
@@ -305,20 +297,20 @@ export default function DashboardPage() {
             <CardDescription>An overview of recent project activities and updates from the team.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {recentEmployees.map((employee) => (
-                <div key={employee.id} className="flex items-start gap-4">
-                    <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
-                        <AvatarImage src={employee.avatarUrl || undefined} alt={employee.name} />
-                        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                            <span className="font-bold">{employee.name}</span> completed a task in <span className="text-primary">{employee.project}</span>.
-                        </p>
-                        <p className="text-xs text-muted-foreground">2 hours ago</p>
-                    </div>
+            {recentEmployees.map((employee) => (
+              <div key={employee.id} className="flex items-start gap-4">
+                <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
+                  <AvatarImage src={employee.avatarUrl || undefined} alt={employee.name} />
+                  <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    <span className="font-bold">{employee.name}</span> completed a task in <span className="text-primary">{employee.project}</span>.
+                  </p>
+                  <p className="text-xs text-muted-foreground">2 hours ago</p>
                 </div>
-              ))}
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
