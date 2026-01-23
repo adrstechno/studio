@@ -88,12 +88,12 @@ export default function EmployeeTasksPage() {
     const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
     const [selfieUrl, setSelfieUrl] = React.useState('');
     const [notes, setNotes] = React.useState('');
-    
+
     // Filters
     const [searchQuery, setSearchQuery] = React.useState('');
     const [priorityFilter, setPriorityFilter] = React.useState<string>('all');
     const [projectFilter, setProjectFilter] = React.useState<string>('all');
-    
+
     // Request task form
     const [newTaskRequest, setNewTaskRequest] = React.useState({
         title: '',
@@ -102,7 +102,7 @@ export default function EmployeeTasksPage() {
         dueDate: undefined as Date | undefined,
         projectId: '',
     });
-    
+
     const { toast } = useToast();
     const auth = useAuth();
     const { user } = useUser(auth);
@@ -122,7 +122,7 @@ export default function EmployeeTasksPage() {
                     throw new Error('Failed to fetch employee data');
                 }
                 const employeeData = await empRes.json();
-                
+
                 setEmployeeId(employeeData.employee.id);
                 setProjectName(employeeData.employee.project);
 
@@ -143,10 +143,10 @@ export default function EmployeeTasksPage() {
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
-                toast({ 
-                    title: 'Error', 
+                toast({
+                    title: 'Error',
                     description: 'Failed to load your tasks. Please try refreshing the page.',
-                    variant: 'destructive' 
+                    variant: 'destructive'
                 });
             } finally {
                 setLoading(false);
@@ -157,7 +157,7 @@ export default function EmployeeTasksPage() {
 
     const handleSubmitTask = async () => {
         if (!selectedTask || !employeeId) return;
-        
+
         const result = await api.post(
             `/api/tasks/${selectedTask.id}/submit`,
             { employeeId, selfieUrl, notes },
@@ -183,7 +183,7 @@ export default function EmployeeTasksPage() {
             toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
             return;
         }
-        
+
         const result = await api.post(
             '/api/tasks',
             {
@@ -199,8 +199,8 @@ export default function EmployeeTasksPage() {
                 loadingKey: 'request-task',
                 successMessage: 'Task request sent to admin for approval!',
                 showSuccessToast: true,
-                onSuccess: (createdTask) => {
-                    setTasks([createdTask, ...tasks]);
+                onSuccess: (createdTask: unknown) => {
+                    setTasks([createdTask as Task, ...tasks]);
                     setRequestTaskOpen(false);
                     setNewTaskRequest({
                         title: '',
@@ -223,7 +223,7 @@ export default function EmployeeTasksPage() {
                 successMessage: `Task moved to ${statusConfig[newStatus].label}`,
                 showSuccessToast: true,
                 onSuccess: () => {
-                    setTasks(prev => prev.map(task => 
+                    setTasks(prev => prev.map(task =>
                         task.id === taskId ? { ...task, status: newStatus } : task
                     ));
                 }
@@ -481,8 +481,8 @@ export default function EmployeeTasksPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setSubmitDialogOpen(false)}>Cancel</Button>
-                        <LoadingButton 
-                            onClick={handleSubmitTask} 
+                        <LoadingButton
+                            onClick={handleSubmitTask}
                             loading={isLoading('submit-task')}
                             loadingText="Submitting..."
                         >
@@ -524,8 +524,8 @@ export default function EmployeeTasksPage() {
                         </div>
                         <div className="grid gap-2">
                             <Label>Project *</Label>
-                            <Select 
-                                value={newTaskRequest.projectId} 
+                            <Select
+                                value={newTaskRequest.projectId}
                                 onValueChange={(v) => setNewTaskRequest({ ...newTaskRequest, projectId: v })}
                             >
                                 <SelectTrigger>
@@ -543,8 +543,8 @@ export default function EmployeeTasksPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label>Priority</Label>
-                                <Select 
-                                    value={newTaskRequest.priority} 
+                                <Select
+                                    value={newTaskRequest.priority}
                                     onValueChange={(v) => setNewTaskRequest({ ...newTaskRequest, priority: v as Task['priority'] })}
                                 >
                                     <SelectTrigger>
@@ -562,10 +562,10 @@ export default function EmployeeTasksPage() {
                                 <Label>Requested Due Date</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                        <Button 
-                                            variant="outline" 
+                                        <Button
+                                            variant="outline"
                                             className={cn(
-                                                'justify-start text-left font-normal', 
+                                                'justify-start text-left font-normal',
                                                 !newTaskRequest.dueDate && 'text-muted-foreground'
                                             )}
                                         >
@@ -574,11 +574,11 @@ export default function EmployeeTasksPage() {
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar 
-                                            mode="single" 
-                                            selected={newTaskRequest.dueDate} 
-                                            onSelect={(date) => setNewTaskRequest({ ...newTaskRequest, dueDate: date })} 
-                                            initialFocus 
+                                        <Calendar
+                                            mode="single"
+                                            selected={newTaskRequest.dueDate}
+                                            onSelect={(date) => setNewTaskRequest({ ...newTaskRequest, dueDate: date })}
+                                            initialFocus
                                         />
                                     </PopoverContent>
                                 </Popover>
@@ -594,8 +594,8 @@ export default function EmployeeTasksPage() {
                         <Button variant="outline" onClick={() => setRequestTaskOpen(false)}>
                             Cancel
                         </Button>
-                        <LoadingButton 
-                            onClick={handleRequestTask} 
+                        <LoadingButton
+                            onClick={handleRequestTask}
                             disabled={!newTaskRequest.title || !newTaskRequest.projectId}
                             loading={isLoading('request-task')}
                             loadingText="Requesting..."
@@ -705,11 +705,11 @@ export default function EmployeeTasksPage() {
                                 {/* Actions */}
                                 {selectedTask.status !== 'Done' && (
                                     <div className="pt-4 border-t">
-                                        <Button 
-                                            className="w-full" 
-                                            onClick={() => { 
-                                                setTaskDetailsOpen(false); 
-                                                setSubmitDialogOpen(true); 
+                                        <Button
+                                            className="w-full"
+                                            onClick={() => {
+                                                setTaskDetailsOpen(false);
+                                                setSubmitDialogOpen(true);
                                             }}
                                         >
                                             <Camera className="h-4 w-4 mr-2" />

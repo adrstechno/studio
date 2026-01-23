@@ -127,7 +127,7 @@ export default function MyProjectsPage() {
     priority: 'Medium' as 'Low' | 'Medium' | 'High' | 'Urgent',
     dueDate: '',
   });
-  
+
   const auth = useAuth();
   const { user } = useUser(auth);
   const { toast } = useToast();
@@ -142,18 +142,18 @@ export default function MyProjectsPage() {
 
   const fetchEmployeeData = async () => {
     if (!user?.email) return;
-    
+
     try {
       console.log('Fetching employee data for email:', user.email);
       const res = await fetch(`/api/employees/me?email=${encodeURIComponent(user.email)}`);
-      
+
       if (!res.ok) {
         const errorData = await res.json();
         console.error('API Error:', errorData);
-        
+
         if (res.status === 404) {
-          toast({ 
-            title: 'Employee Profile Not Found', 
+          toast({
+            title: 'Employee Profile Not Found',
             description: `No employee profile found for ${user.email}. Please contact your administrator.`,
             variant: 'destructive',
             duration: 10000
@@ -163,16 +163,16 @@ export default function MyProjectsPage() {
         }
         return;
       }
-      
+
       const employeeData = await res.json();
       console.log('Employee data loaded:', employeeData);
       setData(employeeData);
     } catch (error) {
       console.error('Error fetching employee data:', error);
-      toast({ 
-        title: 'Error', 
+      toast({
+        title: 'Error',
         description: 'Failed to load your projects. Please try refreshing the page.',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
@@ -181,7 +181,7 @@ export default function MyProjectsPage() {
 
   const handleAddLog = async () => {
     if (!selectedProject || !newLog.summary) return;
-    
+
     const result = await api.post(
       `/api/projects/${encodeURIComponent(selectedProject.name)}/daily-logs`,
       {
@@ -203,7 +203,7 @@ export default function MyProjectsPage() {
 
   const handleCreateTask = async () => {
     if (!selectedProject || !newTask.title || !newTask.assigneeId) return;
-    
+
     const result = await api.post(
       '/api/tasks',
       {
@@ -269,9 +269,9 @@ export default function MyProjectsPage() {
 
   return (
     <LoadingOverlay loading={loading} loadingText="Loading your projects...">
-      <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
           <p className="text-muted-foreground">
@@ -287,7 +287,8 @@ export default function MyProjectsPage() {
       </div>
 
       {/* Projects Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -301,7 +302,7 @@ export default function MyProjectsPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -337,7 +338,7 @@ export default function MyProjectsPage() {
 
       {/* Primary Project (for TeamLeads) */}
       {isTeamLead && primaryProject && (
-        <Card className="border-primary/20">
+        <Card className="border-primary/20 mb-6">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -361,7 +362,7 @@ export default function MyProjectsPage() {
               </div>
               <Progress value={primaryProject.progress} className="h-2" />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm font-medium mb-2">Team Members ({primaryProject.team?.length || 0})</p>
@@ -379,7 +380,7 @@ export default function MyProjectsPage() {
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <p className="text-sm font-medium mb-2">My Tasks ({primaryProject.tasks?.length || 0})</p>
                 <div className="flex gap-1">
@@ -397,7 +398,8 @@ export default function MyProjectsPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+
               <Button size="sm" onClick={() => setSelectedProject(primaryProject)}>
                 View Details
               </Button>
@@ -429,7 +431,7 @@ export default function MyProjectsPage() {
       )}
 
       {/* All Projects */}
-      <div>
+      <div className="mb-6">
         <h2 className="text-xl font-semibold mb-4">
           {isTeamLead ? 'All Projects' : 'Assigned Projects'}
         </h2>
@@ -498,7 +500,7 @@ export default function MyProjectsPage() {
                 <DialogDescription>Client: {selectedProject.clientName}</DialogDescription>
               )}
             </DialogHeader>
-            
+
             <Tabs defaultValue="overview" className="mt-4">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -508,7 +510,7 @@ export default function MyProjectsPage() {
                 )}
                 <TabsTrigger value="details">Details</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="overview" className="space-y-4 mt-4">
                 <div>
                   <h4 className="font-semibold mb-2">Description</h4>
@@ -532,7 +534,7 @@ export default function MyProjectsPage() {
                   </div>
                 )}
               </TabsContent>
-              
+
               <TabsContent value="tasks" className="space-y-3 mt-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">My Tasks</h4>
@@ -576,7 +578,7 @@ export default function MyProjectsPage() {
                   <p className="text-sm text-muted-foreground text-center py-8">No tasks assigned</p>
                 )}
               </TabsContent>
-              
+
               {isTeamLead && selectedProject.isPrimary && (
                 <TabsContent value="team" className="space-y-3 mt-4">
                   <div className="flex items-center justify-between">
@@ -601,8 +603,8 @@ export default function MyProjectsPage() {
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">{member.role}</Badge>
                             {member.id !== data?.employee.id && (
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 variant="ghost"
                                 onClick={() => {
                                   setNewTask(prev => ({ ...prev, assigneeId: member.id }));
@@ -619,20 +621,21 @@ export default function MyProjectsPage() {
                   ))}
                 </TabsContent>
               )}
-              
+
               <TabsContent value="details" className="space-y-4 mt-4">
                 {selectedProject.githubRepo && (
                   <div>
                     <h4 className="font-semibold mb-2">GitHub Repository</h4>
-                    <a href={selectedProject.githubRepo} target="_blank" rel="noopener noreferrer" 
-                       className="flex items-center gap-2 text-sm text-primary hover:underline">
+                    <a href={selectedProject.githubRepo} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-primary hover:underline">
                       <Github className="h-4 w-4" />
                       {selectedProject.githubRepo}
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-2 gap-4">
+
                   {selectedProject.startDate && (
                     <div>
                       <h4 className="font-semibold mb-1">Start Date</h4>
@@ -712,8 +715,8 @@ export default function MyProjectsPage() {
             <Button variant="outline" onClick={() => setAddLogDialogOpen(false)}>
               Cancel
             </Button>
-            <LoadingButton 
-              onClick={handleAddLog} 
+            <LoadingButton
+              onClick={handleAddLog}
               disabled={!newLog.summary}
               loading={isLoading('add-project-log')}
               loadingText="Adding..."
@@ -760,18 +763,20 @@ export default function MyProjectsPage() {
                   <SelectValue placeholder="Select team member" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(selectedProject?.team || []).map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={member.avatarUrl} />
-                          <AvatarFallback className="text-xs">{member.name?.charAt(0) || '?'}</AvatarFallback>
-                        </Avatar>
-                        <span>{member.name}</span>
-                        <Badge variant="outline" className="text-xs">{member.role}</Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {(selectedProject?.team || [])
+                    .filter((member) => member.isActive !== false)
+                    .map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={member.avatarUrl} />
+                            <AvatarFallback className="text-xs">{member.name?.charAt(0) || '?'}</AvatarFallback>
+                          </Avatar>
+                          <span>{member.name}</span>
+                          <Badge variant="outline" className="text-xs">{member.role}</Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -805,8 +810,8 @@ export default function MyProjectsPage() {
             <Button variant="outline" onClick={() => setCreateTaskDialogOpen(false)}>
               Cancel
             </Button>
-            <LoadingButton 
-              onClick={handleCreateTask} 
+            <LoadingButton
+              onClick={handleCreateTask}
               disabled={!newTask.title || !newTask.assigneeId}
               loading={isLoading('create-task')}
               loadingText="Creating..."
@@ -817,7 +822,6 @@ export default function MyProjectsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
     </LoadingOverlay>
   );
 }

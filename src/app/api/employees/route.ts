@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, withRetry } from '@/lib/db';
 import { createFirebaseUser } from '@/lib/firebase-admin';
 
 // GET all employees
 export async function GET() {
     try {
-        const employees = await db.employee.findMany({
-            orderBy: { enrollmentDate: 'desc' },
+        const employees = await withRetry(async () => {
+            return await db.employee.findMany({
+                orderBy: { enrollmentDate: 'desc' },
+            });
         });
         return NextResponse.json(employees);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching employees:', error);
-        return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Failed to fetch employees',
+            details: error.message
+        }, { status: 500 });
     }
 }
 
@@ -21,7 +26,7 @@ export async function POST(request: NextRequest) {
         // Buffer the request body
         const buffer = await request.arrayBuffer();
         const body = JSON.parse(new TextDecoder().decode(buffer));
-        
+
         const { name, email, adrsId, role, project, avatarUrl } = body;
 
         if (!name || !email || !role) {
@@ -32,7 +37,7 @@ export async function POST(request: NextRequest) {
         const namePart = name.toLowerCase().replace(/\s+/g, '');
         const loginEmail = `${namePart}@adrs.com`;
         const defaultPassword = 'password'; // Default password for all new employees
-        
+
         // Personal email is what user entered
         const personalEmail = email.includes('@') ? email : `${email}@gmail.com`;
 
@@ -48,7 +53,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (existingEmployee) {
-            return NextResponse.json({ 
+            return NextResponse.json({
                 error: 'Employee with this email or ADRS ID already exists',
                 code: 'DUPLICATE_EMAIL'
             }, { status: 409 });
@@ -59,7 +64,7 @@ export async function POST(request: NextRequest) {
         let firebaseCreated = false;
         try {
             firebaseResult = await createFirebaseUser(loginEmail, defaultPassword, name);
-            
+
             if (!firebaseResult.success) {
                 console.warn(`Firebase account already exists for ${loginEmail}`);
             } else {
@@ -93,21 +98,21 @@ export async function POST(request: NextRequest) {
                 loginEmail: loginEmail,
                 personalEmail: personalEmail,
                 password: firebaseCreated ? defaultPassword : undefined,
-                message: firebaseCreated 
-                    ? `Firebase account created. Login with: ${loginEmail}` 
+                message: firebaseCreated
+                    ? `Firebase account created. Login with: ${loginEmail}`
                     : 'Firebase account already exists or creation failed',
             }
         }, { status: 201 });
     } catch (error: any) {
         console.error('Error creating employee:', error);
-        
+
         if (error.code === 'P2002') {
-            return NextResponse.json({ 
+            return NextResponse.json({
                 error: 'Employee with this email or ADRS ID already exists',
                 code: 'DUPLICATE_EMAIL'
             }, { status: 409 });
         }
-        
+
         return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 });
     }
 }

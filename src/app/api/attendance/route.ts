@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, withRetry } from '@/lib/db';
 import { AttendanceStatus } from '@prisma/client';
 
 // GET attendance records with optional date filtering
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       const targetDate = new Date(date);
       const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
       const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
-      
+
       whereClause.date = {
         gte: startOfDay,
         lte: endOfDay,
@@ -31,28 +31,30 @@ export async function GET(request: NextRequest) {
       // Specific month
       const startOfMonth = new Date(parseInt(year), parseInt(month) - 1, 1);
       const endOfMonth = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
-      
+
       whereClause.date = {
         gte: startOfMonth,
         lte: endOfMonth,
       };
     }
 
-    const attendance = await db.attendance.findMany({
-      where: whereClause,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
-            role: true,
-            project: true,
+    const attendance = await withRetry(async () => {
+      return await db.attendance.findMany({
+        where: whereClause,
+        include: {
+          employee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+              role: true,
+              project: true,
+            },
           },
         },
-      },
-      orderBy: { date: 'desc' },
+        orderBy: { date: 'desc' },
+      });
     });
 
     return NextResponse.json(attendance);
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
     // Buffer the request body
     const buffer = await request.arrayBuffer();
     const body = JSON.parse(new TextDecoder().decode(buffer));
-    
+
     const { employeeId, date, status, checkIn, checkOut } = body;
 
     if (!employeeId || !date || !status) {
@@ -76,30 +78,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if attendance already exists for this employee and date
-    const existingAttendance = await db.attendance.findUnique({
-      where: {
-        employeeId_date: {
-          employeeId,
-          date: new Date(date),
+    const existingAttendance = await withRetry(async () => {
+      return await db.attendance.findUnique({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: new Date(date),
+          },
         },
-      },
+      });
     });
 
     if (existingAttendance) {
       return NextResponse.json({ error: 'Attendance already exists for this date' }, { status: 400 });
     }
 
-    const attendance = await db.attendance.create({
-      data: {
-        employeeId,
-        date: new Date(date),
-        status: status as AttendanceStatus,
-        checkIn,
-        checkOut,
-      },
-      include: {
-        employee: true,
-      },
+    const attendance = await withRetry(async () => {
+      return await db.attendance.create({
+        data: {
+          employeeId,
+          date: new Date(date),
+          status: status as AttendanceStatus,
+          checkIn,
+          checkOut,
+        },
+        include: {
+          employee: true,
+        },
+      });
     });
 
     return NextResponse.json(attendance, { status: 201 });
@@ -115,23 +121,25 @@ export async function PUT(request: NextRequest) {
     // Buffer the request body
     const buffer = await request.arrayBuffer();
     const body = JSON.parse(new TextDecoder().decode(buffer));
-    
+
     const { id, status, checkIn, checkOut } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Attendance ID is required' }, { status: 400 });
     }
 
-    const attendance = await db.attendance.update({
-      where: { id },
-      data: {
-        ...(status && { status: status as AttendanceStatus }),
-        ...(checkIn && { checkIn }),
-        ...(checkOut && { checkOut }),
-      },
-      include: {
-        employee: true,
-      },
+    const attendance = await withRetry(async () => {
+      return await db.attendance.update({
+        where: { id },
+        data: {
+          ...(status && { status: status as AttendanceStatus }),
+          ...(checkIn && { checkIn }),
+          ...(checkOut && { checkOut }),
+        },
+        include: {
+          employee: true,
+        },
+      });
     });
 
     return NextResponse.json(attendance);

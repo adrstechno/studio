@@ -25,36 +25,53 @@ type Notification = {
   actionUrl?: string;
 };
 
+// Static notifications data to avoid Date.now() during render
+const getInitialNotifications = (): Notification[] => [
+  {
+    id: '1',
+    type: 'leave',
+    title: 'Leave Request Approved',
+    message: 'Your leave request for Jan 20-22 has been approved.',
+    timestamp: new Date('2024-01-15T10:30:00Z'), // Fixed timestamp
+    read: false,
+    actionUrl: '/employee-dashboard/my-leaves',
+  },
+  {
+    id: '2',
+    type: 'task',
+    title: 'New Task Assigned',
+    message: 'You have been assigned to "Design landing page mockups"',
+    timestamp: new Date('2024-01-15T08:00:00Z'), // Fixed timestamp
+    read: false,
+    actionUrl: '/employee-dashboard/tasks',
+  },
+  {
+    id: '3',
+    type: 'attendance',
+    title: 'Late Check-in',
+    message: 'You checked in at 9:45 AM today.',
+    timestamp: new Date('2024-01-15T05:00:00Z'), // Fixed timestamp
+    read: true,
+    actionUrl: '/employee-dashboard/my-attendance',
+  },
+];
+
 export function NotificationsPanel() {
-  const [notifications, setNotifications] = React.useState<Notification[]>([
-    {
-      id: '1',
-      type: 'leave',
-      title: 'Leave Request Approved',
-      message: 'Your leave request for Jan 20-22 has been approved.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 mins ago
-      read: false,
-      actionUrl: '/employee-dashboard/my-leaves',
-    },
-    {
-      id: '2',
-      type: 'task',
-      title: 'New Task Assigned',
-      message: 'You have been assigned to "Design landing page mockups"',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      read: false,
-      actionUrl: '/employee-dashboard/tasks',
-    },
-    {
-      id: '3',
-      type: 'attendance',
-      title: 'Late Check-in',
-      message: 'You checked in at 9:45 AM today.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5), // 5 hours ago
-      read: true,
-      actionUrl: '/employee-dashboard/my-attendance',
-    },
-  ]);
+  const [notifications, setNotifications] = React.useState<Notification[]>(getInitialNotifications);
+  const [mounted, setMounted] = React.useState(false);
+  const [currentTime, setCurrentTime] = React.useState<Date | null>(null);
+
+  React.useEffect(() => {
+    setMounted(true);
+    setCurrentTime(new Date());
+
+    // Update current time every minute for relative timestamps
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -86,8 +103,12 @@ export function NotificationsPanel() {
   };
 
   const getTimeAgo = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    
+    if (!mounted || !currentTime) {
+      return 'Recently'; // Fallback for SSR
+    }
+
+    const seconds = Math.floor((currentTime.getTime() - date.getTime()) / 1000);
+
     if (seconds < 60) return 'Just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
@@ -100,8 +121,8 @@ export function NotificationsPanel() {
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
             >
               {unreadCount}

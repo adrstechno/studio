@@ -13,6 +13,21 @@ import {
 
 export function ThemeToggle() {
     const { setTheme, theme } = useTheme();
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        // Return a placeholder button during SSR to avoid hydration mismatch
+        return (
+            <Button variant="ghost" size="icon">
+                <Sun className="h-5 w-5" />
+                <span className="sr-only">Toggle theme</span>
+            </Button>
+        );
+    }
 
     return (
         <DropdownMenu>

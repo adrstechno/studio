@@ -74,6 +74,7 @@ type Task = {
   assignee?: { id: string; name: string; email: string; avatarUrl?: string };
   project?: { id: string; name: string };
   createdAt: string;
+  comments?: Array<{ id: string; content: string; createdAt: string; author?: { name: string } }>;
 };
 
 type Employee = {
@@ -104,7 +105,7 @@ const priorityConfig = {
 function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
   const config = statusConfig[task.status];
   const priorityConf = priorityConfig[task.priority];
-  
+
   return (
     <Card className="hover:bg-muted/50 transition-all duration-200 group cursor-pointer" onClick={onClick}>
       <CardContent className="p-4 flex items-center gap-4">
@@ -177,13 +178,13 @@ export default function TasksPage() {
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [viewMode, setViewMode] = React.useState<'board' | 'list'>('board');
-  
+
   // Filters
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [priorityFilter, setPriorityFilter] = React.useState<string>('all');
   const [dueDateFilter, setDueDateFilter] = React.useState<string>('all');
-  
+
   // Create form
   const [newTask, setNewTask] = React.useState({
     title: '',
@@ -195,7 +196,8 @@ export default function TasksPage() {
     projectId: '',
   });
   const [creating, setCreating] = React.useState(false);
-  
+  const [newComment, setNewComment] = React.useState('');
+
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -209,13 +211,17 @@ export default function TasksPage() {
         fetch('/api/employees'),
         fetch('/api/projects'),
       ]);
-      
+
       const tasksData = await tasksRes.json();
       const employeesData = await employeesRes.json();
       const projectsData = await projectsRes.json();
-      
+
       setTasks(Array.isArray(tasksData) ? tasksData : []);
-      setEmployees(Array.isArray(employeesData) ? employeesData : []);
+      // Filter only active employees
+      const activeEmployees = Array.isArray(employeesData)
+        ? employeesData.filter((emp: any) => emp.isActive !== false)
+        : [];
+      setEmployees(activeEmployees);
       setProjects(Array.isArray(projectsData) ? projectsData : []);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -233,7 +239,7 @@ export default function TasksPage() {
       toast({ title: 'Error', description: 'Please fill all required fields', variant: 'destructive' });
       return;
     }
-    
+
     setCreating(true);
     try {
       const res = await fetch('/api/tasks', {
@@ -244,9 +250,9 @@ export default function TasksPage() {
           dueDate: newTask.dueDate?.toISOString(),
         }),
       });
-      
+
       if (!res.ok) throw new Error('Failed to create task');
-      
+
       const createdTask = await res.json();
       setTasks([createdTask, ...(Array.isArray(tasks) ? tasks : [])]);
       setCreateDialogOpen(false);
@@ -268,27 +274,8 @@ export default function TasksPage() {
   };
 
   const handleAddComment = async () => {
-    if (!newComment.trim() || !selectedTask) return;
-    
-    try {
-      const res = await fetch(`/api/tasks/${selectedTask.id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newComment, type: 'comment' }),
-      });
-      
-      if (!res.ok) throw new Error('Failed to add comment');
-      
-      const comment = await res.json();
-      setSelectedTask({
-        ...selectedTask,
-        comments: [...(selectedTask.comments || []), comment],
-      });
-      setNewComment('');
-      toast({ title: 'Success', description: 'Comment added' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to add comment', variant: 'destructive' });
-    }
+    // Comment functionality not implemented yet
+    toast({ title: 'Info', description: 'Comment functionality coming soon' });
   };
 
   // Filter tasks
@@ -296,12 +283,12 @@ export default function TasksPage() {
     if (searchQuery && !task?.title?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (statusFilter !== 'all' && task?.status !== statusFilter) return false;
     if (priorityFilter !== 'all' && task?.priority !== priorityFilter) return false;
-    
+
     if (dueDateFilter !== 'all' && task?.dueDate) {
       const dueDate = new Date(task.dueDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (dueDateFilter === 'overdue' && dueDate >= today) return false;
       if (dueDateFilter === 'today' && dueDate.toDateString() !== today.toDateString()) return false;
       if (dueDateFilter === 'week') {
@@ -310,7 +297,7 @@ export default function TasksPage() {
         if (dueDate < today || dueDate > weekFromNow) return false;
       }
     }
-    
+
     return true;
   }) : [];
 
@@ -590,7 +577,7 @@ export default function TasksPage() {
                   </Badge>
                 </div>
               </SheetHeader>
-              
+
               <div className="mt-6 space-y-6">
                 {/* Description */}
                 <div>

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -144,45 +145,45 @@ export default function EmployeesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEmployee),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         if (data.code === 'DUPLICATE_EMAIL') {
-          toast({ 
-            title: 'Error', 
+          toast({
+            title: 'Error',
             description: 'An employee with this email already exists',
-            variant: 'destructive' 
+            variant: 'destructive'
           });
         } else {
           throw new Error(data.error || 'Failed to add employee');
         }
         return;
       }
-      
+
       await fetchData(); // Refresh all data from server
-      
+
       // Show success message with Firebase credentials
       if (data?.firebase?.created) {
-        toast({ 
-          title: 'Success', 
+        toast({
+          title: 'Success',
           description: `${data.employee.name} has been added! Firebase account created with email: ${data.firebase.email} and password: ${data.firebase.password}`,
           duration: 10000, // Show for 10 seconds so user can read credentials
         });
       } else {
-        toast({ 
-          title: 'Success', 
+        toast({
+          title: 'Success',
           description: `${data.employee.name} has been added. ${data.firebase?.message || 'Firebase account already exists'}`,
         });
       }
-      
+
       setAddDialogOpen(false);
       setNewEmployee({ name: '', email: '', adrsId: '', role: 'Developer', project: '', avatarUrl: '' });
     } catch (error: any) {
-      toast({ 
-        title: 'Error', 
-        description: error.message || 'Failed to add employee', 
-        variant: 'destructive' 
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to add employee',
+        variant: 'destructive'
       });
     }
   };
@@ -216,9 +217,9 @@ export default function EmployeesPage() {
       if (!res.ok) throw new Error('Failed to update status');
       await res.json();
       await fetchData(); // Refresh all data from server
-      toast({ 
-        title: newStatus ? 'Activated' : 'Deactivated', 
-        description: `${employee?.name || 'Employee'} has been ${newStatus ? 'activated' : 'deactivated'}` 
+      toast({
+        title: newStatus ? 'Activated' : 'Deactivated',
+        description: `${employee?.name || 'Employee'} has been ${newStatus ? 'activated' : 'deactivated'}`
       });
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update employee status', variant: 'destructive' });
@@ -243,7 +244,7 @@ export default function EmployeesPage() {
       const res = await fetch(`/api/employees/${selectedEmployee.id}/assign-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           projects: selectedProjects,
           project: selectedProjects[0] // Set primary project as first selected
         }),
@@ -251,9 +252,9 @@ export default function EmployeesPage() {
       if (!res.ok) throw new Error('Failed to assign');
       await res.json();
       await fetchData(); // Refresh all data from server
-      toast({ 
-        title: 'Success', 
-        description: `Assigned to ${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''}` 
+      toast({
+        title: 'Success',
+        description: `Assigned to ${selectedProjects.length} project${selectedProjects.length > 1 ? 's' : ''}`
       });
       setAssignDialogOpen(false);
       setSelectedProjects([]);
@@ -351,7 +352,7 @@ export default function EmployeesPage() {
             </TableHeader>
             <TableBody>
               {Array.isArray(filteredEmployees) && filteredEmployees.length > 0 ? filteredEmployees.map((employee) => (
-                <TableRow 
+                <TableRow
                   key={employee?.id}
                   className={cn(
                     employee?.isActive === false && "bg-red-500/5 opacity-60 hover:opacity-80"
@@ -425,8 +426,8 @@ export default function EmployeesPage() {
                         }
 
                         return employeeProjects.map((proj, index) => (
-                          <Badge 
-                            key={proj} 
+                          <Badge
+                            key={proj}
                             variant={index === 0 ? "default" : "secondary"}
                             className="text-xs"
                           >
@@ -456,8 +457,8 @@ export default function EmployeesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => { 
-                          setSelectedEmployee(employee); 
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedEmployee(employee);
                           // Initialize selected projects from employee's current projects
                           let currentProjects: string[] = [];
                           if (employee?.projects) {
@@ -470,7 +471,7 @@ export default function EmployeesPage() {
                             currentProjects = [employee.project];
                           }
                           setSelectedProjects(currentProjects);
-                          setAssignDialogOpen(true); 
+                          setAssignDialogOpen(true);
                         }}>
                           <FolderKanban className="mr-2 h-4 w-4" />Assign Project
                         </DropdownMenuItem>
@@ -480,11 +481,13 @@ export default function EmployeesPage() {
                         <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setDetailsDialogOpen(true); }}>
                           <FileText className="mr-2 h-4 w-4" />View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => window.location.href = `/employees/${employee?.id}/leave-quota`}>
-                          <Users className="mr-2 h-4 w-4" />Manage Leave Quotas
+                        <DropdownMenuItem asChild>
+                          <Link href={`/employees/${employee?.id}/leave-quota`}>
+                            <Users className="mr-2 h-4 w-4" />Manage Leave Quotas
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => handleToggleActive(employee)}
                           className={employee?.isActive === false ? 'text-green-600' : 'text-orange-600'}
                         >
@@ -618,9 +621,9 @@ export default function EmployeesPage() {
             </div>
             <div className="grid gap-2">
               <Label>ADRS ID</Label>
-              <Input 
-                value={selectedEmployee?.adrsId || ''} 
-                onChange={(e) => setSelectedEmployee((prev) => prev ? { ...prev, adrsId: e.target.value } : null)} 
+              <Input
+                value={selectedEmployee?.adrsId || ''}
+                onChange={(e) => setSelectedEmployee((prev) => prev ? { ...prev, adrsId: e.target.value } : null)}
                 placeholder="ADRS-001"
               />
             </div>
@@ -678,8 +681,8 @@ export default function EmployeesPage() {
                         }
                       }}
                     />
-                    <Label 
-                      htmlFor={project?.id} 
+                    <Label
+                      htmlFor={project?.id}
                       className={cn(
                         "text-sm font-normal cursor-pointer flex-1",
                         assigningProject && "text-muted-foreground"
@@ -698,12 +701,12 @@ export default function EmployeesPage() {
                 <p className="text-xs text-muted-foreground mb-2">Selected Projects ({selectedProjects.length}):</p>
                 <div className="flex flex-wrap gap-1">
                   {selectedProjects.map((projectName, index) => (
-                    <span 
-                      key={projectName} 
+                    <span
+                      key={projectName}
                       className={cn(
                         "text-xs px-2 py-1 rounded-full",
-                        index === 0 
-                          ? "bg-primary text-primary-foreground" 
+                        index === 0
+                          ? "bg-primary text-primary-foreground"
                           : "bg-secondary text-secondary-foreground"
                       )}
                     >
@@ -715,8 +718,8 @@ export default function EmployeesPage() {
             )}
           </div>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setAssignDialogOpen(false);
                 setSelectedProjects([]);
@@ -725,7 +728,7 @@ export default function EmployeesPage() {
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleAssignProject}
               disabled={selectedProjects.length === 0 || assigningProject}
             >
@@ -781,8 +784,8 @@ export default function EmployeesPage() {
                     }
 
                     return employeeProjects.map((proj, index) => (
-                      <Badge 
-                        key={proj} 
+                      <Badge
+                        key={proj}
                         variant={index === 0 ? "default" : "secondary"}
                         className="text-xs"
                       >

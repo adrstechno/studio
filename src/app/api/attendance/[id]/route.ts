@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, withRetry } from '@/lib/db';
 
 // PUT - Update attendance record
 export async function PUT(
@@ -11,9 +11,11 @@ export async function PUT(
         const body = await request.json();
         const { status, checkIn, checkOut } = body;
 
-        const attendance = await db.attendance.update({
-            where: { id },
-            data: { status, checkIn, checkOut },
+        const attendance = await withRetry(async () => {
+            return await db.attendance.update({
+                where: { id },
+                data: { status, checkIn, checkOut },
+            });
         });
 
         return NextResponse.json(attendance);
@@ -30,10 +32,35 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        await db.attendance.delete({ where: { id } });
+        await withRetry(async () => {
+            return await db.attendance.delete({ where: { id } });
+        });
         return NextResponse.json({ message: 'Attendance record deleted' });
     } catch (error) {
         console.error('Error deleting attendance:', error);
         return NextResponse.json({ error: 'Failed to delete attendance' }, { status: 500 });
+    }
+}
+
+// PATCH - Partial update attendance record (for punch out)
+export async function PATCH(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const body = await request.json();
+
+        const attendance = await withRetry(async () => {
+            return await db.attendance.update({
+                where: { id },
+                data: body,
+            });
+        });
+
+        return NextResponse.json(attendance);
+    } catch (error) {
+        console.error('Error updating attendance:', error);
+        return NextResponse.json({ error: 'Failed to update attendance' }, { status: 500 });
     }
 }

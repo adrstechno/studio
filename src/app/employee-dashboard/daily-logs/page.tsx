@@ -63,7 +63,7 @@ export default function DailyLogsPage() {
     const [loading, setLoading] = React.useState(true);
     const [employeeId, setEmployeeId] = React.useState<string | null>(null);
     const [projectName, setProjectName] = React.useState<string>('');
-    const [availableProjects, setAvailableProjects] = React.useState<{id: string, name: string, isPrimary: boolean}[]>([]);
+    const [availableProjects, setAvailableProjects] = React.useState<{ id: string, name: string, isPrimary: boolean }[]>([]);
     const [dailyLogs, setDailyLogs] = React.useState<DailyLog[]>([]);
     const [addDialogOpen, setAddDialogOpen] = React.useState(false);
     const [newLog, setNewLog] = React.useState({
@@ -80,23 +80,23 @@ export default function DailyLogsPage() {
             }
             try {
                 console.log('Fetching employee data for email:', user.email);
-                
+
                 // Use the new /me endpoint
                 const empRes = await fetch(`/api/employees/me?email=${encodeURIComponent(user.email)}`);
                 console.log('Employee response status:', empRes.status);
-                
+
                 if (!empRes.ok) {
                     console.error('Failed to fetch employee:', empRes.status, empRes.statusText);
                     setLoading(false);
                     return;
                 }
-                
+
                 const employeeData = await empRes.json();
                 console.log('Employee data:', employeeData);
 
                 if (employeeData?.employee?.id) {
                     setEmployeeId(employeeData.employee.id);
-                    
+
                     // Set available projects
                     const projects = employeeData.projects || [];
                     setAvailableProjects(projects.map((p: any) => ({
@@ -104,11 +104,11 @@ export default function DailyLogsPage() {
                         name: p.name,
                         isPrimary: p.isPrimary
                     })));
-                    
+
                     // Get the primary project (where isPrimary is true)
                     const primaryProject = projects.find((p: any) => p.isPrimary);
                     const primaryProjectName = primaryProject?.name || employeeData.employee.project || 'Unassigned';
-                    
+
                     console.log('Setting project name:', primaryProjectName);
                     setProjectName(primaryProjectName);
 
@@ -168,7 +168,7 @@ export default function DailyLogsPage() {
             toast({ title: 'Error', description: 'Please fill in the summary', variant: 'destructive' });
             return;
         }
-        
+
         const result = await api.post(
             `/api/projects/${encodeURIComponent(projectName)}/daily-logs`,
             {
@@ -182,7 +182,7 @@ export default function DailyLogsPage() {
                 successMessage: 'Daily log added successfully!',
                 showSuccessToast: true,
                 onSuccess: (log) => {
-                    setDailyLogs([log, ...dailyLogs]);
+                    setDailyLogs([log as DailyLog, ...dailyLogs]);
                     setAddDialogOpen(false);
                     setNewLog({ summary: '', hoursWorked: '', category: 'General' });
                 }
@@ -192,7 +192,7 @@ export default function DailyLogsPage() {
 
     const handleDeleteLog = async (logId: string) => {
         if (!projectName) return;
-        
+
         const result = await api.delete(
             `/api/projects/${encodeURIComponent(projectName)}/daily-logs/${logId}`,
             {
@@ -298,7 +298,7 @@ export default function DailyLogsPage() {
                             </SelectContent>
                         </Select>
                     )}
-                    <LoadingButton 
+                    <LoadingButton
                         onClick={() => setAddDialogOpen(true)}
                         loading={isLoading('add-daily-log')}
                         loadingText="Adding..."
@@ -383,10 +383,10 @@ export default function DailyLogsPage() {
                                             </div>
                                             <p className="text-sm">{log.summary || 'No summary'}</p>
                                         </div>
-                                        <LoadingButton 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="text-red-500 hover:text-red-600" 
+                                        <LoadingButton
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-red-500 hover:text-red-600"
                                             onClick={() => handleDeleteLog(log.id)}
                                             loading={isLoading(`delete-log-${log.id}`)}
                                             loadingText=""
@@ -461,8 +461,8 @@ export default function DailyLogsPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-                        <LoadingButton 
-                            onClick={handleAddLog} 
+                        <LoadingButton
+                            onClick={handleAddLog}
                             disabled={!newLog.summary}
                             loading={isLoading('add-daily-log')}
                             loadingText="Adding..."

@@ -7,6 +7,11 @@ import { cn } from '@/lib/utils';
 
 export function CopyButton({ text, className }: { text: string, className?: string }) {
   const [hasCopied, setHasCopied] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   React.useEffect(() => {
     if (hasCopied) {
@@ -17,9 +22,29 @@ export function CopyButton({ text, className }: { text: string, className?: stri
     }
   }, [hasCopied]);
 
-  const onCopy = () => {
-    navigator.clipboard.writeText(text);
-    setHasCopied(true);
+  const onCopy = async () => {
+    if (!mounted || !navigator?.clipboard) {
+      // Fallback for older browsers or SSR
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setHasCopied(true);
+      } catch (err) {
+        console.error('Failed to copy text:', err);
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setHasCopied(true);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+    }
   };
 
   return (

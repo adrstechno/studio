@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
+import { SimpleCalendar } from '@/components/simple-calendar';
 import {
   Card,
   CardContent,
@@ -18,7 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Clock, TrendingUp, CalendarCheck, Loader2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Users, Clock, TrendingUp, CalendarCheck, Loader2, Filter } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +54,14 @@ interface AttendanceRecord {
   };
 }
 
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  role: string;
+}
+
 interface Stats {
   present: number;
   late: number;
@@ -59,6 +74,8 @@ interface Stats {
 export default function AttendancePage() {
   const [date, setDate] = React.useState<Date | undefined>(new Date());
   const [attendanceRecords, setAttendanceRecords] = React.useState<AttendanceRecord[]>([]);
+  const [allEmployees, setAllEmployees] = React.useState<Employee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = React.useState<string>('all');
   const [stats, setStats] = React.useState<Stats>({
     present: 0,
     late: 0,
@@ -70,13 +87,34 @@ export default function AttendancePage() {
   const [leaveDays, setLeaveDays] = React.useState<Date[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
+  const [selectedDateRecord, setSelectedDateRecord] = React.useState<AttendanceRecord | null>(null);
+
+  // Fetch employees
+  React.useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await fetch('/api/employees');
+        if (response.ok) {
+          const data = await response.json();
+          setAllEmployees(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   // Fetch today's attendance
   const fetchTodayAttendance = React.useCallback(async () => {
     try {
       setLoading(true);
       const today = new Date().toISOString().split('T')[0];
-      const response = await fetch(`/api/attendance?date=${today}`);
+      const url = selectedEmployee === 'all'
+        ? `/api/attendance?date=${today}`
+        : `/api/attendance?date=${today}&employeeId=${selectedEmployee}`;
+
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setAttendanceRecords(Array.isArray(data) ? data : []);
@@ -89,13 +127,17 @@ export default function AttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedEmployee]);
 
   // Fetch attendance stats
   const fetchStats = React.useCallback(async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const response = await fetch(`/api/attendance/stats?date=${today}`);
+      const url = selectedEmployee === 'all'
+        ? `/api/attendance/stats?date=${today}`
+        : `/api/attendance/stats?date=${today}&employeeId=${selectedEmployee}`;
+
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -103,14 +145,18 @@ export default function AttendancePage() {
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
-  }, []);
+  }, [selectedEmployee]);
 
   // Fetch calendar data
   const fetchCalendarData = React.useCallback(async (month: Date) => {
     try {
       const monthNum = month.getMonth() + 1;
       const year = month.getFullYear();
-      const response = await fetch(`/api/attendance/calendar?month=${monthNum}&year=${year}`);
+      const url = selectedEmployee === 'all'
+        ? `/api/attendance/calendar?month=${monthNum}&year=${year}`
+        : `/api/attendance/calendar?month=${monthNum}&year=${year}&employeeId=${selectedEmployee}`;
+
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         const leaveDates = Array.isArray(data?.leaveDays) ? data.leaveDays.map((dateStr: string) => new Date(dateStr)) : [];
@@ -122,17 +168,54 @@ export default function AttendancePage() {
       console.error('Error fetching calendar data:', error);
       setLeaveDays([]);
     }
-  }, []);
+  }, [selectedEmployee]);
+
+  // Fetch attendance for selected date
+  const fetchSelectedDateAttendance = React.useCallback(async (selectedDate: Date) => {
+    if (!selectedDate || selectedEmployee === 'all') {
+      setSelectedDateRecord(null);
+      return;
+    }
+
+    try {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      const response = await fetch(`/api/attendance?date=${dateStr}&employeeId=${selectedEmployee}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setSelectedDateRecord(data[0]);
+        } else {
+          setSelectedDateRecord(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching selected date attendance:', error);
+      setSelectedDateRecord(null);
+    }
+  }, [selectedEmployee]);
 
   React.useEffect(() => {
     fetchTodayAttendance();
     fetchStats();
     fetchCalendarData(currentMonth);
-  }, [fetchTodayAttendance, fetchStats, fetchCalendarData, currentMonth]);
+  }, [fetchTodayAttendance, fetchStats, fetchCalendarData, currentMonth, selectedEmployee]);
+
+  React.useEffect(() => {
+    if (date) {
+      fetchSelectedDateAttendance(date);
+    }
+  }, [date, fetchSelectedDateAttendance]);
 
   const handleMonthChange = (newMonth: Date) => {
     setCurrentMonth(newMonth);
     fetchCalendarData(newMonth);
+  };
+
+  const handleDateSelect = (newDate: Date | undefined) => {
+    setDate(newDate);
+    if (newDate) {
+      fetchSelectedDateAttendance(newDate);
+    }
   };
 
   return (
@@ -141,6 +224,41 @@ export default function AttendancePage() {
         title="Attendance Management"
         description="Track and manage employee attendance records."
       />
+
+      {/* Employee Filter */}
+      <div className="mb-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-2 block">Filter by Employee</label>
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <SelectTrigger className="w-full md:w-[300px]">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    {allEmployees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{emp.name}</span>
+                          <span className="text-xs text-muted-foreground">({emp.role})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedEmployee !== 'all' && (
+                <Badge variant="secondary" className="ml-auto">
+                  Filtered
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
@@ -202,11 +320,13 @@ export default function AttendancePage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Today's Attendance</CardTitle>
+              <CardTitle>
+                {selectedEmployee === 'all' ? "Today's Attendance" : `${allEmployees.find(e => e.id === selectedEmployee)?.name}'s Attendance`}
+              </CardTitle>
               <CardDescription>
-                {new Date().toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  month: 'long', 
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
                   day: 'numeric',
                   year: 'numeric'
                 })}
@@ -280,63 +400,96 @@ export default function AttendancePage() {
             <CardHeader>
               <CardTitle>Calendar View</CardTitle>
               <CardDescription>
-                Monthly attendance overview - Yellow dots indicate leave days
+                {selectedEmployee === 'all'
+                  ? 'Monthly attendance overview - Yellow dots indicate leave days'
+                  : `${allEmployees.find(e => e.id === selectedEmployee)?.name}'s monthly attendance`
+                }
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3">
-              <Calendar
-                mode="single"
+            <CardContent className="p-3 sm:p-6">
+              <SimpleCalendar
                 selected={date}
-                onSelect={setDate}
+                onSelect={handleDateSelect}
                 month={currentMonth}
                 onMonthChange={handleMonthChange}
-                className="w-full rounded-md border-0"
-                classNames={{
-                  months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                  month: "space-y-4",
-                  caption: "flex justify-center pt-1 relative items-center",
-                  caption_label: "text-base font-semibold",
-                  nav: "space-x-1 flex items-center",
-                  nav_button: "h-8 w-8 bg-transparent p-0 opacity-50 hover:opacity-100 hover:bg-accent rounded-md transition-colors",
-                  nav_button_previous: "absolute left-1",
-                  nav_button_next: "absolute right-1",
-                  table: "w-full border-collapse space-y-1",
-                  head_row: "flex",
-                  head_cell: "text-muted-foreground rounded-md w-full font-medium text-[0.8rem]",
-                  row: "flex w-full mt-2",
-                  cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
-                  day: "h-10 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground rounded-md transition-all",
-                  day_range_end: "day-range-end",
-                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground font-bold",
-                  day_today: "bg-accent text-accent-foreground font-bold ring-2 ring-primary ring-offset-2 ring-offset-background",
-                  day_outside: "day-outside text-muted-foreground opacity-30",
-                  day_disabled: "text-muted-foreground opacity-50",
-                  day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                  day_hidden: "invisible",
-                }}
+                className="rounded-md border-0"
                 modifiers={{
                   onLeave: leaveDays,
                 }}
                 modifiersClassNames={{
-                  onLeave: 'relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-yellow-400 after:rounded-full after:shadow-lg',
+                  onLeave: 'relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1.5 after:h-1.5 after:bg-yellow-400 after:rounded-full',
                 }}
               />
-              <div className="mt-6 space-y-3 px-2">
-                <h4 className="font-semibold text-sm mb-3">Legend</h4>
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors">
-                  <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground font-bold text-sm">15</div>
-                  <span className="text-sm">Selected Date</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors">
-                  <div className="w-8 h-8 bg-accent rounded-md flex items-center justify-center font-bold text-sm ring-2 ring-primary ring-offset-2 ring-offset-background">14</div>
-                  <span className="text-sm">Today</span>
-                </div>
-                <div className="flex items-center gap-3 p-2 rounded-md hover:bg-accent transition-colors">
-                  <div className="w-8 h-8 bg-background border rounded-md flex items-center justify-center text-sm relative">
-                    <span>20</span>
-                    <div className="absolute bottom-1 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-lg"></div>
+              <div className="mt-6 space-y-4">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Calendar Legend</h4>
+
+                <div className="grid gap-3">
+                  {/* Selected Date - Dynamic */}
+                  {date && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-all">
+                      <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm">
+                        {date.getDate()}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                        {selectedDateRecord ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className={cn("text-xs", statusColors[selectedDateRecord.status as keyof typeof statusColors])}>
+                              {selectedDateRecord.status}
+                            </Badge>
+                            {selectedDateRecord.checkIn && (
+                              <span className="text-xs text-muted-foreground">
+                                {selectedDateRecord.checkIn} - {selectedDateRecord.checkOut || 'Ongoing'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {selectedEmployee === 'all' ? 'Click to view details' : 'No attendance record'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Today */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-all">
+                    <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center font-bold text-sm ring-2 ring-primary ring-offset-2 ring-offset-background shadow-sm">
+                      {new Date().getDate()}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Today</p>
+                      <p className="text-xs text-muted-foreground">Current date highlighted</p>
+                    </div>
                   </div>
-                  <span className="text-sm">Leave Day</span>
+
+                  {/* Leave Day */}
+                  {leaveDays.length > 0 && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-all">
+                      <div className="w-10 h-10 bg-background border-2 rounded-lg flex items-center justify-center text-sm relative shadow-sm">
+                        <span className="font-medium">{leaveDays[0]?.getDate() || '20'}</span>
+                        <div className="absolute bottom-1.5 w-2 h-2 bg-yellow-400 rounded-full shadow-md"></div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Leave Days</p>
+                        <p className="text-xs text-muted-foreground">
+                          {leaveDays.length} {leaveDays.length === 1 ? 'day' : 'days'} this month
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Info */}
+                <div className="pt-3 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    {selectedEmployee === 'all'
+                      ? 'Select an employee above to view individual attendance details'
+                      : 'Click any date to view attendance details for that day'
+                    }
+                  </p>
                 </div>
               </div>
             </CardContent>
