@@ -102,12 +102,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-           
+
             <div className="font-headline font-semibold text-lg">
               <Logo className=" h-12 w-auto" />
             </div>
           </div>
-        </SidebarHeader>  
+        </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => (
@@ -176,10 +176,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} />
-                  <AvatarFallback>{user.displayName?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
+              <Button variant="ghost" className="relative h-9 w-auto rounded-full">
+                <Avatar className="h-9 w-auto">
+                  {/* <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} /> */}
+                  <AvatarFallback className='w-auto rounded-lg'>{user.displayName?.charAt(0).toUpperCase() ?? user.email?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>

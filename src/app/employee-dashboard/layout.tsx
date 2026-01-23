@@ -164,22 +164,22 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                 </SidebarFooter>
             </Sidebar>
             <SidebarInset>
-                <header className="flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-6 sticky top-0 z-30">
+                <header className="flex h-16 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-6 sticky top-0 z-30 overflow-visible">
                     <SidebarTrigger className="md:hidden" />
                     <div className="flex-1" />
                     <ThemeToggle />
                     <NotificationsPanel />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="relative h-9 w-9 rounded-full ">
-                                <Avatar className="h-9 w-9">
+                            <button className="relative h-10 w-10 rounded-full p-0 flex items-center justify-center hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                {/* <Avatar className="h-10 w-10">
                                     <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} />
                                     <AvatarFallback>{user.displayName?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            </Button>
+                                </Avatar> */}
+                            </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                            <DropdownMenuLabel>My Aclkcount</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
                                 <Link href="/employee-dashboard"><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
