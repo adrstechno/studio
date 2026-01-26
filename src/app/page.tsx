@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import {
   Workflow,
@@ -16,10 +15,9 @@ import {
 import Logo from '../components/logo';
 
 export default function HomePage() {
-  const auth = useAuth();
-  const { user, loading, role } = useUser(auth);
+  const { user, loading } = useAuth();
 
-  const dashboardLink = role === 'admin' ? '/dashboard' : '/employee-dashboard';
+  const dashboardLink = user?.role === 'admin' ? '/dashboard' : '/employee-dashboard';
 
   return (
     <div className="min-h-screen bg-background">

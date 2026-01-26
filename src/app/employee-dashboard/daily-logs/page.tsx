@@ -26,8 +26,7 @@ import {
 import { PageHeader } from '@/components/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Clock, Calendar as CalendarIcon, LoaderCircle, Trash2, FileText } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useLoading, LoadingButton, LoadingOverlay } from '@/hooks/use-loading';
@@ -55,8 +54,7 @@ const categoryColors: Record<string, string> = {
 };
 
 export default function DailyLogsPage() {
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
     const { toast } = useToast();
     const api = useApiClient();
     const { isLoading } = useLoading();

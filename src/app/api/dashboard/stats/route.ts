@@ -5,18 +5,20 @@ import { db } from '@/lib/db';
 export async function GET() {
     try {
         // Get counts
-        const [employeeCount, projectCount, taskStats] = await Promise.all([
+        const [employeeCount, projectCount, taskStats, internCount, activeInternCount] = await Promise.all([
             db.employee.count(),
             db.project.count(),
             db.task.groupBy({
                 by: ['status'],
                 _count: true,
             }),
+            db.intern.count(),
+            db.intern.count({ where: { status: 'Active' } }),
         ]);
 
-        const completedTasks = taskStats.find(s => s.status === 'Done')?._count || 0;
-        const inProgressTasks = taskStats.find(s => s.status === 'InProgress')?._count || 0;
-        const todoTasks = taskStats.find(s => s.status === 'ToDo')?._count || 0;
+        const completedTasks = taskStats.find((s: any) => s.status === 'Done')?._count || 0;
+        const inProgressTasks = taskStats.find((s: any) => s.status === 'InProgress')?._count || 0;
+        const todoTasks = taskStats.find((s: any) => s.status === 'ToDo')?._count || 0;
 
         // Get project status breakdown
         const projectsByStatus = await db.project.groupBy({
@@ -67,6 +69,8 @@ export async function GET() {
         return NextResponse.json({
             totalEmployees: employeeCount,
             totalProjects: projectCount,
+            totalInterns: internCount,
+            activeInterns: activeInternCount,
             completedTasks,
             inProgressTasks,
             todoTasks,

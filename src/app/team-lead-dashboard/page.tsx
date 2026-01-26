@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { Users, ListTodo, Calendar, CheckCircle2, Clock, AlertCircle, LoaderCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -28,8 +27,7 @@ type Task = {
 };
 
 export default function TeamLeadDashboardPage() {
-  const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
   const [teamTasks, setTeamTasks] = React.useState<Task[]>([]);
@@ -38,7 +36,7 @@ export default function TeamLeadDashboardPage() {
   React.useEffect(() => {
     const fetchData = async () => {
       if (!user?.email) return;
-      
+
       try {
         // Get current team lead info
         const empRes = await fetch(`/api/employees/me?email=${encodeURIComponent(user.email)}`);
@@ -46,9 +44,9 @@ export default function TeamLeadDashboardPage() {
           setLoading(false);
           return;
         }
-        
+
         const currentEmployee = await empRes.json();
-        
+
         // Parse projects (support both single project and multiple projects)
         let projects: string[] = [];
         if (currentEmployee.projects) {
@@ -60,18 +58,18 @@ export default function TeamLeadDashboardPage() {
         } else if (currentEmployee.project && currentEmployee.project !== 'Unassigned') {
           projects = [currentEmployee.project];
         }
-        
+
         setMyProjects(projects);
 
         // Fetch all employees to find team members
         const allEmpRes = await fetch('/api/employees');
         const allEmployees = await allEmpRes.json();
-        
+
         // Filter team members (employees in the same projects, excluding self and inactive)
         const team = Array.isArray(allEmployees) ? allEmployees.filter((emp: any) => {
           if (emp.id === currentEmployee.id) return false;
           if (emp.isActive === false) return false;
-          
+
           // Check if employee is in any of the team lead's projects
           let empProjects: string[] = [];
           if (emp.projects) {
@@ -83,19 +81,19 @@ export default function TeamLeadDashboardPage() {
           } else if (emp.project && emp.project !== 'Unassigned') {
             empProjects = [emp.project];
           }
-          
+
           return projects.some(p => empProjects.includes(p));
         }) : [];
-        
+
         setTeamMembers(team);
 
         // Fetch tasks for team members
         const tasksRes = await fetch('/api/tasks');
         const allTasks = await tasksRes.json();
-        const teamTasksList = Array.isArray(allTasks) ? allTasks.filter((task: any) => 
+        const teamTasksList = Array.isArray(allTasks) ? allTasks.filter((task: any) =>
           team.some((member: any) => member.id === task.assigneeId)
         ) : [];
-        
+
         setTeamTasks(teamTasksList);
       } catch (error) {
         console.error('Error fetching team data:', error);
@@ -103,7 +101,7 @@ export default function TeamLeadDashboardPage() {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [user?.email]);
 
@@ -242,7 +240,7 @@ export default function TeamLeadDashboardPage() {
                       <p className="text-sm font-medium">{task.title}</p>
                       <p className="text-xs text-muted-foreground">{task.assignee?.name}</p>
                     </div>
-                    <Badge 
+                    <Badge
                       variant="outline"
                       className={cn(
                         task.status === 'Done' && 'bg-green-500/10 text-green-600 border-green-200',

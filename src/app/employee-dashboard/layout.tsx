@@ -6,7 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
     Avatar,
     AvatarFallback,
-    AvatarImage,
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +29,6 @@ import {
     SidebarInset,
 } from '@/components/ui/sidebar';
 import {
-    Bell,
     CalendarCheck,
     LayoutGrid,
     ListTodo,
@@ -42,10 +40,9 @@ import {
     FileText,
     Clock,
     FolderKanban,
+    KeyRound,
 } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { useAuth } from '@/hooks/use-auth';
 import { ThemeToggle } from '@/components/theme-toggle';
 import Logo from '../../components/logo';
 import { NotificationsPanel } from '@/components/notifications-panel';
@@ -61,8 +58,7 @@ const employeeNavItems = [
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const auth = useAuth();
-    const { user, loading, role, signOut } = useUser(auth);
+    const { user, loading, logout } = useAuth();
     const router = useRouter();
 
     React.useEffect(() => {
@@ -71,10 +67,15 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         }
 
         // Redirect admins to admin dashboard
-        if (!loading && user && role === 'admin') {
+        if (!loading && user && user.role === 'admin') {
             router.replace('/dashboard');
         }
-    }, [user, loading, role, router]);
+
+        // Redirect interns to intern dashboard
+        if (!loading && user && user.role === 'intern') {
+            router.replace('/intern-dashboard');
+        }
+    }, [user, loading, router]);
 
     if (loading || !user) {
         return (
@@ -84,8 +85,8 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
         );
     }
 
-    // Show loading while redirecting admins
-    if (role === 'admin') {
+    // Show loading while redirecting admins or interns
+    if (user.role === 'admin' || user.role === 'intern') {
         return (
             <div className="flex h-screen items-center justify-center bg-background">
                 <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
@@ -131,11 +132,10 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                         <DropdownMenuTrigger asChild>
                             <button className="flex items-center w-full gap-2 p-2 rounded-md outline-none hover:bg-sidebar-accent focus-visible:ring-2 ring-sidebar-ring">
                                 <Avatar className="h-9 w-9">
-                                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} />
-                                    <AvatarFallback>{user.displayName?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback>{user.name?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex flex-col items-start overflow-hidden text-sm">
-                                    <span className="font-medium truncate">{user.displayName ?? 'Employee'}</span>
+                                    <span className="font-medium truncate">{user.name ?? 'Employee'}</span>
                                     <span className="text-muted-foreground text-xs truncate">{user.email}</span>
                                 </div>
                             </button>
@@ -146,6 +146,9 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                             <DropdownMenuItem asChild>
                                 <Link href="/employee-dashboard"><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
                             </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href="/employee-dashboard/change-password"><KeyRound className="mr-2 h-4 w-4" />Change Password</Link>
+                            </DropdownMenuItem>
                             <DropdownMenuItem>
                                 <Settings className="mr-2 h-4 w-4" />
                                 Settings
@@ -155,7 +158,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                                 Support
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={signOut}>
+                            <DropdownMenuItem onClick={logout}>
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Logout
                             </DropdownMenuItem>
@@ -172,17 +175,19 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <button className="relative h-10 w-10 rounded-full p-0 flex items-center justify-center hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                {/* <Avatar className="h-10 w-10">
-                                    <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? 'user'} />
-                                    <AvatarFallback>{user.displayName?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
-                                </Avatar> */}
+                                <Avatar className="h-10 w-10">
+                                    <AvatarFallback>{user.name?.charAt(0) ?? user.email?.charAt(0)}</AvatarFallback>
+                                </Avatar>
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>My Aclkcount</DropdownMenuLabel>
+                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
                                 <Link href="/employee-dashboard"><LayoutGrid className="mr-2 h-4 w-4" />Dashboard</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link href="/employee-dashboard/change-password"><KeyRound className="mr-2 h-4 w-4" />Change Password</Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem>
                                 <Settings className="mr-2 h-4 w-4" />
@@ -193,7 +198,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                                 Support
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={signOut}>
+                            <DropdownMenuItem onClick={logout}>
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Logout
                             </DropdownMenuItem>
@@ -204,7 +209,6 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
                     {children}
                 </main>
             </SidebarInset>
-            <FirebaseErrorListener />
         </SidebarProvider>
     );
 }

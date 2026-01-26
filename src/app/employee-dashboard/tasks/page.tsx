@@ -19,8 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { PageHeader } from '@/components/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, Clock, PlayCircle, Camera, Upload, Users, LoaderCircle, Calendar as CalendarIcon, Eye, Search, Filter, PlusCircle } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useLoading, LoadingButton, LoadingOverlay } from '@/hooks/use-loading';
@@ -104,8 +103,7 @@ export default function EmployeeTasksPage() {
     });
 
     const { toast } = useToast();
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
     const { isLoading } = useLoading();
     const [employeeId, setEmployeeId] = React.useState<string | null>(null);
     const [projectName, setProjectName] = React.useState<string>('');

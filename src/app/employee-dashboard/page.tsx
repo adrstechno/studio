@@ -18,8 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -47,8 +46,7 @@ type Project = {
 };
 
 export default function EmployeeDashboardPage() {
-  const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user } = useAuth();
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [loading, setLoading] = React.useState(true);
   const [employeeId, setEmployeeId] = React.useState<string | null>(null);
@@ -74,7 +72,7 @@ export default function EmployeeDashboardPage() {
           setLoading(false);
           return;
         }
-        
+
         const currentEmployee = await empRes.json();
         console.log('Current employee:', currentEmployee);
 
@@ -97,11 +95,11 @@ export default function EmployeeDashboardPage() {
             if (Array.isArray(allProjects)) {
               // Get project IDs from tasks
               const projectIdsFromTasks = [...new Set(tasks.map((t: Task) => t?.projectId).filter(Boolean))];
-              
+
               console.log('Employee project:', currentEmployee.project);
               console.log('All projects:', allProjects.map(p => ({ id: p.id, name: p.name })));
               console.log('Project IDs from tasks:', projectIdsFromTasks);
-              
+
               // Filter projects: either from tasks OR matching employee's assigned project name
               const employeeProjects = allProjects.filter((p: Project) => {
                 if (!p?.id) return false;
@@ -111,7 +109,7 @@ export default function EmployeeDashboardPage() {
                 if (currentEmployee.project && p.name === currentEmployee.project) return true;
                 return false;
               });
-              
+
               console.log('Filtered employee projects:', employeeProjects.map(p => ({ id: p.id, name: p.name })));
               setMyProjects(employeeProjects);
             }
@@ -163,16 +161,16 @@ export default function EmployeeDashboardPage() {
           <div className="w-24 h-24 rounded-full border-4 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shadow-xl">
             <div className="text-center">
               <div className="text-xl font-bold tabular-nums">
-                {currentTime.toLocaleTimeString('en-US', { 
-                  hour: '2-digit', 
+                {currentTime.toLocaleTimeString('en-US', {
+                  hour: '2-digit',
                   minute: '2-digit',
-                  hour12: false 
+                  hour12: false
                 })}
               </div>
               <div className="text-[10px] text-muted-foreground">
-                {currentTime.toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric' 
+                {currentTime.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric'
                 })}
               </div>
             </div>

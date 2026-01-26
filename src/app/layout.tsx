@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AuthProvider } from '@/hooks/use-auth';
 import { ThemeProvider } from '@/components/theme-provider';
 import { LoadingProvider, GlobalLoadingIndicator } from '@/hooks/use-loading';
 
@@ -30,10 +30,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LoadingProvider>
-            <FirebaseClientProvider>
+            <AuthProvider>
               {children}
               <GlobalLoadingIndicator />
-            </FirebaseClientProvider>
+            </AuthProvider>
           </LoadingProvider>
           <Toaster />
         </ThemeProvider>

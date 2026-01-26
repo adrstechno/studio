@@ -7,7 +7,24 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(employee)
+  employeeId   String?  @unique
+  internId     String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  intern       Intern?   @relation(fields: [internId], references: [id], onDelete: Cascade)
+
+  @@map("users")
+}
+
 model Employee {
+  user                User?
   id                  String            @id @default(cuid())
   name                String
   email               String            @unique  // Personal/contact email (e.g., sparshsahu8435@gmail.com)
@@ -103,13 +120,16 @@ model Task {
   attachments    String?
   approvalStatus TaskApprovalStatus @default(Approved)
   requestedBy    String?
-  assigneeId     String
+  assigneeId     String?            // Employee ID (nullable for intern assignments)
+  assigneeType   AssigneeType       @default(Employee) // Employee or Intern
+  internId       String?            // Intern ID (nullable for employee assignments)
   projectId      String
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
   assignments    TaskAssignment[]
   submissions    TaskSubmission[]
-  assignee       Employee           @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+  assignee       Employee?          @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+  intern         Intern?            @relation(fields: [internId], references: [id], onDelete: Cascade)
   project        Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("tasks")
@@ -169,6 +189,63 @@ model LeaveRequest {
   employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@map("leave_requests")
+}
+
+model Intern {
+  user              User?
+  id                String              @id @default(cuid())
+  name              String
+  email             String              @unique
+  phone             String?
+  avatarUrl         String?
+  university        String?
+  degree            String?
+  startDate         DateTime
+  endDate           DateTime?
+  status            InternStatus        @default(Upcoming)
+  stipendAmount     Float?
+  mentorId          String?
+  project           String              @default("Unassigned")
+  projects          String?             // JSON array of project names
+  terminationDate   DateTime?
+  terminationReason String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  evaluations       InternEvaluation[]
+  stipendPayments   StipendPayment[]
+  tasks             Task[]              // Tasks assigned to this intern
+
+  @@map("interns")
+}
+
+model InternEvaluation {
+  id          String   @id @default(cuid())
+  internId    String
+  mentorId    String
+  mentorName  String
+  rating      Int      // 1-5 scale
+  feedback    String?
+  skills      String?  // JSON object with skill ratings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  intern      Intern   @relation(fields: [internId], references: [id], onDelete: Cascade)
+
+  @@map("intern_evaluations")
+}
+
+model StipendPayment {
+  id            String        @id @default(cuid())
+  internId      String
+  amount        Float
+  paymentDate   DateTime
+  paymentMethod String?
+  status        PaymentStatus @default(Pending)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  intern        Intern        @relation(fields: [internId], references: [id], onDelete: Cascade)
+
+  @@map("stipend_payments")
 }
 
 enum Role {
@@ -262,4 +339,28 @@ enum LogCategory {
   Documentation
   Meeting
   Review
+}
+
+enum UserRole {
+  admin
+  employee
+  intern
+}
+
+enum InternStatus {
+  Upcoming
+  Active
+  Completed
+  Terminated
+}
+
+enum PaymentStatus {
+  Pending
+  Paid
+  Failed
+}
+
+enum AssigneeType {
+  Employee
+  Intern
 }

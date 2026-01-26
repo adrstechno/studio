@@ -2,6 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -39,10 +50,22 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MoreHorizontal, PlusCircle, FileText, UserCog, Trash2, FolderKanban, Search, Upload, Users, LoaderCircle, UserCheck, UserX } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, FileText, UserCog, Trash2, FolderKanban, Search, Users, LoaderCircle, UserCheck, UserX, ImagePlus } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+
+// Form validation schema
+const employeeFormSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name is too long'),
+  email: z.string().email('Invalid email address'),
+  adrsId: z.string().optional(),
+  role: z.enum(['Developer', 'Designer', 'Manager', 'QA', 'Admin', 'TeamLead']),
+  project: z.string().optional(),
+  avatarUrl: z.string().optional(),
+});
+
+type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 
 type Employee = {
   id: string;
@@ -50,7 +73,7 @@ type Employee = {
   email: string;
   adrsId?: string | null;
   avatarUrl: string | null;
-  role: 'Developer' | 'Designer' | 'Manager' | 'QA' | 'Admin' | 'TeamLead';
+  role: 'Developer' | 'Designer' | 'Manager' | 'QA';
   project: string;
   projects?: string | null;
   isActive?: boolean;
@@ -93,15 +116,28 @@ export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [filterRole, setFilterRole] = React.useState<string>('all');
   const [filterProject, setFilterProject] = React.useState<string>('all');
+  const [uploadingImage, setUploadingImage] = React.useState(false);
+  const [previewImage, setPreviewImage] = React.useState<string>('');
   const { toast } = useToast();
 
-  const [newEmployee, setNewEmployee] = React.useState({
-    name: '',
-    email: '',
-    adrsId: '',
-    role: 'Developer',
-    project: '',
-    avatarUrl: '',
+  // Form for adding employee
+  const addForm = useForm<EmployeeFormValues>({
+    resolver: zodResolver(employeeFormSchema),
+    mode: 'onChange', // Validate on change
+    defaultValues: {
+      name: '',
+      email: '',
+      adrsId: '',
+      role: 'Developer',
+      project: '',
+      avatarUrl: '',
+    },
+  });
+
+  // Form for editing employee
+  const editForm = useForm<EmployeeFormValues>({
+    resolver: zodResolver(employeeFormSchema),
+    mode: 'onChange', // Validate on change
   });
 
   // Fetch employees and projects from API
@@ -138,12 +174,77 @@ export default function EmployeesPage() {
     return matchesSearch && matchesRole && matchesProject;
   }) : [];
 
-  const handleAddEmployee = async () => {
+  // Handle image upload
+  const handleImageUpload = async (file: File, formType: 'add' | 'edit') => {
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Image must be less than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+
+      if (formType === 'add') {
+        addForm.setValue('avatarUrl', data.url);
+        setPreviewImage(data.url);
+      } else {
+        editForm.setValue('avatarUrl', data.url);
+        if (selectedEmployee) {
+          setSelectedEmployee({ ...selectedEmployee, avatarUrl: data.url });
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Image uploaded successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Upload failed',
+        description: 'Failed to upload image. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleAddEmployee = async (values: EmployeeFormValues) => {
     try {
       const res = await fetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newEmployee),
+        body: JSON.stringify(values),
       });
 
       const data = await res.json();
@@ -178,7 +279,8 @@ export default function EmployeesPage() {
       }
 
       setAddDialogOpen(false);
-      setNewEmployee({ name: '', email: '', adrsId: '', role: 'Developer', project: '', avatarUrl: '' });
+      addForm.reset();
+      setPreviewImage('');
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -188,19 +290,20 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleUpdateEmployee = async () => {
+  const handleUpdateEmployee = async (values: EmployeeFormValues) => {
     if (!selectedEmployee) return;
     try {
       const res = await fetch(`/api/employees/${selectedEmployee.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(selectedEmployee),
+        body: JSON.stringify(values),
       });
       if (!res.ok) throw new Error('Failed to update');
       const updated = await res.json();
       await fetchData(); // Refresh all data from server
       toast({ title: 'Success', description: `${updated?.name || 'Employee'} has been updated` });
       setEditDialogOpen(false);
+      editForm.reset();
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to update employee', variant: 'destructive' });
     }
@@ -475,7 +578,17 @@ export default function EmployeesPage() {
                         }}>
                           <FolderKanban className="mr-2 h-4 w-4" />Assign Project
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setSelectedEmployee({ ...employee }); setEditDialogOpen(true); }}>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedEmployee({ ...employee });
+                          editForm.reset({
+                            name: employee.name,
+                            email: employee.email,
+                            adrsId: employee.adrsId || '',
+                            role: employee.role,
+                            avatarUrl: employee.avatarUrl || '',
+                          });
+                          setEditDialogOpen(true);
+                        }}>
                           <UserCog className="mr-2 h-4 w-4" />Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setSelectedEmployee(employee); setDetailsDialogOpen(true); }}>
@@ -517,130 +630,327 @@ export default function EmployeesPage() {
       </Card>
 
       {/* Add Employee Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => {
+        setAddDialogOpen(open);
+        if (!open) {
+          addForm.reset();
+          setPreviewImage('');
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add New Employee</DialogTitle>
             <DialogDescription>Add a new team member to your organization.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Profile Image URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://example.com/photo.jpg"
-                  value={newEmployee.avatarUrl}
-                  onChange={(e) => setNewEmployee((prev) => ({ ...prev, avatarUrl: e.target.value }))}
-                />
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={newEmployee.avatarUrl || undefined} />
-                  <AvatarFallback><Upload className="h-4 w-4" /></AvatarFallback>
-                </Avatar>
+          <Form {...addForm}>
+            <form onSubmit={addForm.handleSubmit(handleAddEmployee)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  {/* Profile Image Upload */}
+                  <FormField
+                    control={addForm.control}
+                    name="avatarUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Profile Image</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-20 w-20">
+                              <AvatarImage src={previewImage || field.value || undefined} />
+                              <AvatarFallback>
+                                <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleImageUpload(file, 'add');
+                                  }
+                                }}
+                                disabled={uploadingImage}
+                                className="cursor-pointer"
+                              />
+                              {uploadingImage && (
+                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                  <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  Uploading...
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Max 5MB. JPG, PNG, GIF
+                              </p>
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Name */}
+                  <FormField
+                    control={addForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter full name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Email */}
+                  <FormField
+                    control={addForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="email@adrs.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  {/* ADRS ID */}
+                  <FormField
+                    control={addForm.control}
+                    name="adrsId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ADRS ID (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ADRS-001" {...field} />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">Unique employee identifier</p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Role */}
+                  <FormField
+                    control={addForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {roles.map((role) => (
+                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Project */}
+                  <FormField
+                    control={addForm.control}
+                    name="project"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assign to Project</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select project (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Array.isArray(projects) && projects.length > 0 ? projects.map((proj) => (
+                              <SelectItem key={proj.id} value={proj.name}>{proj.name}</SelectItem>
+                            )) : (
+                              <SelectItem value="no-projects" disabled>No projects available</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Name</Label>
-              <Input
-                placeholder="Enter name"
-                value={newEmployee.name}
-                onChange={(e) => setNewEmployee((prev) => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input
-                placeholder="email@adrs.com"
-                value={newEmployee.email}
-                onChange={(e) => setNewEmployee((prev) => ({ ...prev, email: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>ADRS ID (Optional)</Label>
-              <Input
-                placeholder="ADRS-001"
-                value={newEmployee.adrsId}
-                onChange={(e) => setNewEmployee((prev) => ({ ...prev, adrsId: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">Unique employee identifier for ADRS</p>
-            </div>
-            <div className="grid gap-2">
-              <Label>Role</Label>
-              <Select value={newEmployee.role} onValueChange={(v) => setNewEmployee((prev) => ({ ...prev, role: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (<SelectItem key={role} value={role}>{role}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Assign to Project</Label>
-              <Select value={newEmployee.project} onValueChange={(v) => setNewEmployee((prev) => ({ ...prev, project: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                <SelectContent>
-                  {Array.isArray(projects) && projects.length > 0 ? projects.map((proj) => (<SelectItem key={proj.id} value={proj.name}>{proj.name}</SelectItem>)) : (
-                    <SelectItem value="no-projects" disabled>No projects available</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddEmployee} disabled={!newEmployee.name || !newEmployee.email}>Add Employee</Button>
-          </DialogFooter>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={uploadingImage || !addForm.formState.isValid}>
+                  {uploadingImage ? 'Uploading...' : 'Add Employee'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
       {/* Edit Employee Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        setEditDialogOpen(open);
+        if (!open) {
+          editForm.reset();
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Profile Image URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={selectedEmployee?.avatarUrl || ''}
-                  onChange={(e) => setSelectedEmployee((prev) => prev ? { ...prev, avatarUrl: e.target.value } : null)}
-                />
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedEmployee?.avatarUrl || undefined} />
-                  <AvatarFallback>{selectedEmployee?.name?.charAt(0)}</AvatarFallback>
-                </Avatar>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleUpdateEmployee)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  {/* Profile Image Upload */}
+                  <FormField
+                    control={editForm.control}
+                    name="avatarUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Profile Image</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-20 w-20">
+                              <AvatarImage src={field.value || selectedEmployee?.avatarUrl || undefined} />
+                              <AvatarFallback>
+                                {selectedEmployee?.name?.charAt(0) || <ImagePlus className="h-8 w-8 text-muted-foreground" />}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleImageUpload(file, 'edit');
+                                  }
+                                }}
+                                disabled={uploadingImage}
+                                className="cursor-pointer"
+                              />
+                              {uploadingImage && (
+                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                  <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  Uploading...
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Max 5MB. JPG, PNG, GIF
+                              </p>
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Name */}
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter full name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Email */}
+                  <FormField
+                    control={editForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email *</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="email@adrs.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  {/* ADRS ID */}
+                  <FormField
+                    control={editForm.control}
+                    name="adrsId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ADRS ID (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ADRS-001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Role */}
+                  <FormField
+                    control={editForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {roles.map((role) => (
+                              <SelectItem key={role} value={role}>{role}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Name</Label>
-              <Input value={selectedEmployee?.name || ''} onChange={(e) => setSelectedEmployee((prev) => prev ? { ...prev, name: e.target.value } : null)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input value={selectedEmployee?.email || ''} onChange={(e) => setSelectedEmployee((prev) => prev ? { ...prev, email: e.target.value } : null)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>ADRS ID</Label>
-              <Input
-                value={selectedEmployee?.adrsId || ''}
-                onChange={(e) => setSelectedEmployee((prev) => prev ? { ...prev, adrsId: e.target.value } : null)}
-                placeholder="ADRS-001"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Role</Label>
-              <Select value={selectedEmployee?.role} onValueChange={(v) => setSelectedEmployee((prev) => prev ? { ...prev, role: v as Employee['role'] } : null)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (<SelectItem key={role} value={role}>{role}</SelectItem>))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpdateEmployee}>Save Changes</Button>
-          </DialogFooter>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={uploadingImage || !editForm.formState.isValid}>
+                  {uploadingImage ? 'Uploading...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 

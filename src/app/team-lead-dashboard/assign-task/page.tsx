@@ -11,8 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PageHeader } from '@/components/page-header';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle, Calendar as CalendarIcon, PlusCircle, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,13 +25,15 @@ type TeamMember = {
   id: string;
   name: string;
   email: string;
-  role: string;
+  type: 'Employee' | 'Intern';
+  role?: string;
+  university?: string;
+  status?: string;
   avatarUrl?: string;
 };
 
 export default function AssignTaskPage() {
-  const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
@@ -47,12 +48,13 @@ export default function AssignTaskPage() {
     priority: 'Medium' as 'Low' | 'Medium' | 'High' | 'Urgent',
     dueDate: undefined as Date | undefined,
     assigneeId: '',
+    assigneeType: '' as 'Employee' | 'Intern' | '',
   });
 
   React.useEffect(() => {
     const fetchData = async () => {
       if (!user?.email) return;
-      
+
       try {
         // Get current team lead info
         const empRes = await fetch(`/api/employees/me?email=${encodeURIComponent(user.email)}`);
@@ -60,9 +62,9 @@ export default function AssignTaskPage() {
           setLoading(false);
           return;
         }
-        
+
         const currentEmployee = await empRes.json();
-        
+
         // Parse team lead's projects
         let projectNames: string[] = [];
         if (currentEmployee.projects) {
@@ -78,19 +80,19 @@ export default function AssignTaskPage() {
         // Fetch all projects to get IDs
         const projRes = await fetch('/api/projects');
         const allProjects = await projRes.json();
-        const myProjectsList = Array.isArray(allProjects) 
+        const myProjectsList = Array.isArray(allProjects)
           ? allProjects.filter((p: any) => projectNames.includes(p.name))
           : [];
-        
+
         setMyProjects(myProjectsList);
 
         // Fetch all active employees
         const allEmpRes = await fetch('/api/employees');
         const allEmployees = await allEmpRes.json();
-        const activeEmployees = Array.isArray(allEmployees) 
+        const activeEmployees = Array.isArray(allEmployees)
           ? allEmployees.filter((emp: any) => emp.isActive !== false && emp.id !== currentEmployee.id)
           : [];
-        
+
         setTeamMembers(activeEmployees);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -99,48 +101,53 @@ export default function AssignTaskPage() {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [user?.email, toast]);
 
   // Filter team members when project is selected
   React.useEffect(() => {
-    if (!selectedProjectId) {
-      setFilteredMembers([]);
-      return;
-    }
-
-    const selectedProject = myProjects.find(p => p.id === selectedProjectId);
-    if (!selectedProject) {
-      setFilteredMembers([]);
-      return;
-    }
-
-    // Filter members who are in the selected project
-    const membersInProject = teamMembers.filter((member: any) => {
-      let memberProjects: string[] = [];
-      if (member.projects) {
-        try {
-          memberProjects = JSON.parse(member.projects);
-        } catch {
-          memberProjects = [member.project];
-        }
-      } else if (member.project && member.project !== 'Unassigned') {
-        memberProjects = [member.project];
+    const fetchTeamMembers = async () => {
+      if (!selectedProjectId) {
+        setFilteredMembers([]);
+        return;
       }
-      
-      return memberProjects.includes(selectedProject.name);
-    });
 
-    setFilteredMembers(membersInProject);
-  }, [selectedProjectId, myProjects, teamMembers]);
+      const selectedProject = myProjects.find(p => p.id === selectedProjectId);
+      if (!selectedProject) {
+        setFilteredMembers([]);
+        return;
+      }
+
+      try {
+        // Fetch team members (employees + interns) for this project
+        const res = await fetch(`/api/projects/${encodeURIComponent(selectedProject.name)}/team-members`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch team members');
+        }
+
+        const members = await res.json();
+        setFilteredMembers(members);
+      } catch (error) {
+        console.error('Error fetching team members:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load team members',
+          variant: 'destructive'
+        });
+        setFilteredMembers([]);
+      }
+    };
+
+    fetchTeamMembers();
+  }, [selectedProjectId, myProjects, toast]);
 
   const handleCreateTask = async () => {
-    if (!taskData.title || !selectedProjectId || !taskData.assigneeId) {
-      toast({ 
-        title: 'Error', 
-        description: 'Please fill in all required fields', 
-        variant: 'destructive' 
+    if (!taskData.title || !selectedProjectId || !taskData.assigneeId || !taskData.assigneeType) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive'
       });
       return;
     }
@@ -156,16 +163,20 @@ export default function AssignTaskPage() {
           priority: taskData.priority,
           dueDate: taskData.dueDate?.toISOString(),
           assigneeId: taskData.assigneeId,
+          assigneeType: taskData.assigneeType,
           projectId: selectedProjectId,
           status: 'ToDo',
           approvalStatus: 'Approved',
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to create task');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to create task');
+      }
 
       toast({ title: 'Success', description: 'Task assigned successfully' });
-      
+
       // Reset form
       setTaskData({
         title: '',
@@ -173,10 +184,15 @@ export default function AssignTaskPage() {
         priority: 'Medium',
         dueDate: undefined,
         assigneeId: '',
+        assigneeType: '',
       });
       setSelectedProjectId('');
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to create task', variant: 'destructive' });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create task',
+        variant: 'destructive'
+      });
     } finally {
       setCreating(false);
     }
@@ -236,9 +252,16 @@ export default function AssignTaskPage() {
           {/* Step 2: Select Team Member */}
           <div className="space-y-2">
             <Label>Assign To *</Label>
-            <Select 
-              value={taskData.assigneeId} 
-              onValueChange={(v) => setTaskData({ ...taskData, assigneeId: v })}
+            <Select
+              value={taskData.assigneeId}
+              onValueChange={(v) => {
+                const selectedMember = filteredMembers.find(m => m.id === v);
+                setTaskData({
+                  ...taskData,
+                  assigneeId: v,
+                  assigneeType: selectedMember?.type || ''
+                });
+              }}
               disabled={!selectedProjectId}
             >
               <SelectTrigger>
@@ -246,14 +269,41 @@ export default function AssignTaskPage() {
               </SelectTrigger>
               <SelectContent>
                 {filteredMembers.length > 0 ? (
-                  filteredMembers.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        {member.name} - {member.role}
-                      </div>
-                    </SelectItem>
-                  ))
+                  <>
+                    {/* Group Employees */}
+                    {filteredMembers.filter(m => m.type === 'Employee').length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                          Employees
+                        </div>
+                        {filteredMembers.filter(m => m.type === 'Employee').map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              {member.name} - {member.role}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Group Interns */}
+                    {filteredMembers.filter(m => m.type === 'Intern').length > 0 && (
+                      <>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                          Interns
+                        </div>
+                        {filteredMembers.filter(m => m.type === 'Intern').map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              {member.name} - {member.university || 'Intern'}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </>
                 ) : (
                   <SelectItem value="no-members" disabled>
                     {selectedProjectId ? 'No team members in this project' : 'Select a project first'}
@@ -261,6 +311,11 @@ export default function AssignTaskPage() {
                 )}
               </SelectContent>
             </Select>
+            {selectedProjectId && filteredMembers.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {filteredMembers.filter(m => m.type === 'Employee').length} employee(s), {filteredMembers.filter(m => m.type === 'Intern').length} intern(s) available
+              </p>
+            )}
             {selectedProjectId && filteredMembers.length === 0 && (
               <p className="text-xs text-muted-foreground">
                 No team members found in this project
@@ -291,8 +346,8 @@ export default function AssignTaskPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>
-              <Select 
-                value={taskData.priority} 
+              <Select
+                value={taskData.priority}
                 onValueChange={(v: any) => setTaskData({ ...taskData, priority: v })}
               >
                 <SelectTrigger>
@@ -311,8 +366,8 @@ export default function AssignTaskPage() {
               <Label>Due Date</Label>
               <Popover modal={true}>
                 <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className={cn(
                       'w-full justify-start text-left font-normal',
                       !taskData.dueDate && 'text-muted-foreground'
@@ -334,9 +389,9 @@ export default function AssignTaskPage() {
             </div>
           </div>
 
-          <Button 
-            onClick={handleCreateTask} 
-            disabled={creating || !taskData.title || !selectedProjectId || !taskData.assigneeId}
+          <Button
+            onClick={handleCreateTask}
+            disabled={creating || !taskData.title || !selectedProjectId || !taskData.assigneeId || !taskData.assigneeType}
             className="w-full"
           >
             {creating ? (

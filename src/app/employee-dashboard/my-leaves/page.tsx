@@ -31,8 +31,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { PlusCircle, Calendar, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -74,8 +73,7 @@ type LeaveQuotas = {
 };
 
 export default function MyLeavesPage() {
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
     const { toast } = useToast();
     const [open, setOpen] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
@@ -100,13 +98,13 @@ export default function MyLeavesPage() {
                 // Get employee by email
                 const empRes = await fetch('/api/employees');
                 if (!empRes.ok) throw new Error('Failed to fetch employees');
-                
+
                 const employees = await empRes.json();
                 if (!Array.isArray(employees)) {
                     console.error('Invalid employees data');
                     return;
                 }
-                
+
                 const currentEmployee = employees.find((e: { email: string }) => e?.email === user.email);
 
                 if (currentEmployee?.id) {
@@ -181,7 +179,7 @@ export default function MyLeavesPage() {
 
             const newRequest = await res.json();
             setLeaveRequests(prev => [newRequest, ...prev]);
-            
+
             toast({
                 title: 'Leave Request Submitted',
                 description: 'Your leave request has been submitted for approval.',
@@ -422,8 +420,8 @@ export default function MyLeavesPage() {
                                 <span className="font-medium">{leaveBalance.casual.remaining}/{leaveBalance.casual.total}</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-blue-500" 
+                                <div
+                                    className="h-full bg-blue-500"
                                     style={{ width: `${leaveBalance.casual.total > 0 ? (leaveBalance.casual.remaining / leaveBalance.casual.total) * 100 : 0}%` }}
                                 />
                             </div>
@@ -434,8 +432,8 @@ export default function MyLeavesPage() {
                                 <span className="font-medium">{leaveBalance.sick.remaining}/{leaveBalance.sick.total}</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-green-500" 
+                                <div
+                                    className="h-full bg-green-500"
                                     style={{ width: `${leaveBalance.sick.total > 0 ? (leaveBalance.sick.remaining / leaveBalance.sick.total) * 100 : 0}%` }}
                                 />
                             </div>
@@ -446,8 +444,8 @@ export default function MyLeavesPage() {
                                 <span className="font-medium">{leaveBalance.workFromHome.remaining}/{leaveBalance.workFromHome.total}</span>
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-orange-500" 
+                                <div
+                                    className="h-full bg-orange-500"
                                     style={{ width: `${leaveBalance.workFromHome.total > 0 ? (leaveBalance.workFromHome.remaining / leaveBalance.workFromHome.total) * 100 : 0}%` }}
                                 />
                             </div>
@@ -459,8 +457,8 @@ export default function MyLeavesPage() {
                                     <span className="font-medium">{leaveBalance.earned.remaining}/{leaveBalance.earned.total}</span>
                                 </div>
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-purple-500" 
+                                    <div
+                                        className="h-full bg-purple-500"
                                         style={{ width: `${(leaveBalance.earned.remaining / leaveBalance.earned.total) * 100}%` }}
                                     />
                                 </div>
@@ -473,8 +471,8 @@ export default function MyLeavesPage() {
                                     <span className="font-medium">{leaveBalance.maternity.remaining}/{leaveBalance.maternity.total}</span>
                                 </div>
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-pink-500" 
+                                    <div
+                                        className="h-full bg-pink-500"
                                         style={{ width: `${(leaveBalance.maternity.remaining / leaveBalance.maternity.total) * 100}%` }}
                                     />
                                 </div>
@@ -487,8 +485,8 @@ export default function MyLeavesPage() {
                                     <span className="font-medium">{leaveBalance.paternity.remaining}/{leaveBalance.paternity.total}</span>
                                 </div>
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-cyan-500" 
+                                    <div
+                                        className="h-full bg-cyan-500"
                                         style={{ width: `${(leaveBalance.paternity.remaining / leaveBalance.paternity.total) * 100}%` }}
                                     />
                                 </div>
@@ -519,7 +517,7 @@ export default function MyLeavesPage() {
                                 {leaveRequests.map((request) => {
                                     const StatusIcon = statusConfig[request.status].icon;
                                     const duration = calculateDuration(request.startDate, request.endDate);
-                                    
+
                                     return (
                                         <TableRow key={request.id}>
                                             <TableCell>
@@ -538,9 +536,9 @@ export default function MyLeavesPage() {
                                             <TableCell>
                                                 <Badge variant="secondary" className="text-xs">
                                                     {request.leaveDuration === 'FullDay' ? 'Full Day' :
-                                                     request.leaveDuration === 'HalfDay' ? 'Half Day' :
-                                                     request.leaveDuration === 'FirstHalf' ? 'First Half' :
-                                                     'Second Half'}
+                                                        request.leaveDuration === 'HalfDay' ? 'Half Day' :
+                                                            request.leaveDuration === 'FirstHalf' ? 'First Half' :
+                                                                'Second Half'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{duration} day{duration > 1 ? 's' : ''}</TableCell>

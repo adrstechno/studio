@@ -40,8 +40,7 @@ import {
   Clock,
   FileText,
 } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useLoading, LoadingButton, LoadingOverlay } from '@/hooks/use-loading';
@@ -128,8 +127,7 @@ export default function MyProjectsPage() {
     dueDate: '',
   });
 
-  const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user } = useAuth();
   const { toast } = useToast();
   const { isLoading } = useLoading();
   const api = useApiClient();
@@ -764,7 +762,7 @@ export default function MyProjectsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {(selectedProject?.team || [])
-                    .filter((member) => member.isActive !== false)
+                    .filter((member) => (member as any).isActive !== false)
                     .map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         <div className="flex items-center gap-2">

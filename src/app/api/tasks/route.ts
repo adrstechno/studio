@@ -7,15 +7,23 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const assigneeId = searchParams.get('assigneeId');
         const projectId = searchParams.get('projectId');
+        const assigneeType = searchParams.get('assigneeType');
 
         const where: Record<string, unknown> = {};
-        if (assigneeId) where.assigneeId = assigneeId;
+        if (assigneeId) {
+            if (assigneeType === 'Intern') {
+                where.internId = assigneeId;
+            } else {
+                where.assigneeId = assigneeId;
+            }
+        }
         if (projectId) where.projectId = projectId;
 
         const tasks = await db.task.findMany({
             where,
             include: {
                 assignee: true,
+                intern: true,
                 project: true,
                 submissions: true,
             },
@@ -35,28 +43,118 @@ export async function POST(request: NextRequest) {
         // Buffer the request body
         const buffer = await request.arrayBuffer();
         const body = JSON.parse(new TextDecoder().decode(buffer));
-        
-        const { title, description, assigneeId, projectId, status, priority, dueDate, attachments, approvalStatus, requestedBy } = body;
 
-        if (!title || !assigneeId || !projectId) {
+        const {
+            title,
+            description,
+            assigneeId,
+            assigneeType,
+            projectId,
+            status,
+            priority,
+            dueDate,
+            attachments,
+            approvalStatus,
+            requestedBy
+        } = body;
+
+        if (!title || !projectId) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        if (!assigneeId || !assigneeType) {
+            return NextResponse.json({ error: 'Assignee information is required' }, { status: 400 });
+        }
+
+        // Validate assignee exists and is part of the project
+        const project = await db.project.findUnique({
+            where: { id: projectId }
+        });
+
+        if (!project) {
+            return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        }
+
+        // Validate assignee is part of the project
+        if (assigneeType === 'Intern') {
+            const intern = await db.intern.findUnique({
+                where: { id: assigneeId }
+            });
+
+            if (!intern) {
+                return NextResponse.json({ error: 'Intern not found' }, { status: 404 });
+            }
+
+            // Check if intern is assigned to this project
+            let internProjects: string[] = [];
+            if (intern.projects) {
+                try {
+                    internProjects = JSON.parse(intern.projects);
+                } catch {
+                    internProjects = [intern.project];
+                }
+            } else if (intern.project && intern.project !== 'Unassigned') {
+                internProjects = [intern.project];
+            }
+
+            if (!internProjects.includes(project.name)) {
+                return NextResponse.json({
+                    error: 'Intern is not assigned to this project'
+                }, { status: 400 });
+            }
+        } else {
+            const employee = await db.employee.findUnique({
+                where: { id: assigneeId }
+            });
+
+            if (!employee) {
+                return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+            }
+
+            // Check if employee is assigned to this project
+            let employeeProjects: string[] = [];
+            if (employee.projects) {
+                try {
+                    employeeProjects = JSON.parse(employee.projects);
+                } catch {
+                    employeeProjects = [employee.project];
+                }
+            } else if (employee.project && employee.project !== 'Unassigned') {
+                employeeProjects = [employee.project];
+            }
+
+            if (!employeeProjects.includes(project.name)) {
+                return NextResponse.json({
+                    error: 'Employee is not assigned to this project'
+                }, { status: 400 });
+            }
+        }
+
+        // Create task with appropriate assignee field
+        const taskData: any = {
+            title,
+            description,
+            assigneeType,
+            projectId,
+            status: status || 'ToDo',
+            priority: priority || 'Medium',
+            dueDate: dueDate ? new Date(dueDate) : null,
+            attachments,
+            approvalStatus: approvalStatus || 'Approved',
+            requestedBy,
+        };
+
+        if (assigneeType === 'Intern') {
+            taskData.internId = assigneeId;
+        } else {
+            taskData.assigneeId = assigneeId;
+        }
+
         const task = await db.task.create({
-            data: {
-                title,
-                description,
-                assigneeId,
-                projectId,
-                status: status || 'ToDo',
-                priority: priority || 'Medium',
-                dueDate: dueDate ? new Date(dueDate) : null,
-                attachments,
-                approvalStatus: approvalStatus || 'Approved',
-                requestedBy,
-            },
+            data: taskData,
             include: {
                 assignee: true,
+                intern: true,
                 project: true,
             },
         });

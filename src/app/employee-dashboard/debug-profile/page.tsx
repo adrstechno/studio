@@ -4,16 +4,14 @@ import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoaderCircle, RefreshCw } from 'lucide-react';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function DebugProfilePage() {
   const [employees, setEmployees] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  
-  const auth = useAuth();
-  const { user } = useUser(auth);
+
+  const { user } = useAuth();
 
   const fetchEmployees = async () => {
     setLoading(true);

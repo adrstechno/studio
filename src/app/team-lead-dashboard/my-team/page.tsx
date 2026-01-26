@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/page-header';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { LoaderCircle, Mail, Briefcase } from 'lucide-react';
 
 type TeamMember = {
@@ -27,8 +26,7 @@ const roleColors: Record<string, string> = {
 };
 
 export default function MyTeamPage() {
-  const auth = useAuth();
-  const { user } = useUser(auth);
+  const { user } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
   const [myProjects, setMyProjects] = React.useState<string[]>([]);
@@ -36,7 +34,7 @@ export default function MyTeamPage() {
   React.useEffect(() => {
     const fetchTeam = async () => {
       if (!user?.email) return;
-      
+
       try {
         // Get current team lead info
         const empRes = await fetch(`/api/employees/me?email=${encodeURIComponent(user.email)}`);
@@ -44,9 +42,9 @@ export default function MyTeamPage() {
           setLoading(false);
           return;
         }
-        
+
         const currentEmployee = await empRes.json();
-        
+
         // Parse projects
         let projects: string[] = [];
         if (currentEmployee.projects) {
@@ -58,18 +56,18 @@ export default function MyTeamPage() {
         } else if (currentEmployee.project && currentEmployee.project !== 'Unassigned') {
           projects = [currentEmployee.project];
         }
-        
+
         setMyProjects(projects);
 
         // Fetch all employees
         const allEmpRes = await fetch('/api/employees');
         const allEmployees = await allEmpRes.json();
-        
+
         // Filter team members
         const team = Array.isArray(allEmployees) ? allEmployees.filter((emp: any) => {
           if (emp.id === currentEmployee.id) return false;
           if (emp.isActive === false) return false;
-          
+
           let empProjects: string[] = [];
           if (emp.projects) {
             try {
@@ -80,10 +78,10 @@ export default function MyTeamPage() {
           } else if (emp.project && emp.project !== 'Unassigned') {
             empProjects = [emp.project];
           }
-          
+
           return projects.some(p => empProjects.includes(p));
         }) : [];
-        
+
         setTeamMembers(team);
       } catch (error) {
         console.error('Error fetching team:', error);
@@ -91,7 +89,7 @@ export default function MyTeamPage() {
         setLoading(false);
       }
     };
-    
+
     fetchTeam();
   }, [user?.email]);
 
@@ -150,13 +148,13 @@ export default function MyTeamPage() {
                     <AvatarFallback className="text-lg">{member.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <h3 className="font-semibold text-lg">{member.name}</h3>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`mt-2 ${roleColors[member.role] || 'bg-gray-500/20 text-gray-600'}`}
                   >
                     {member.role}
                   </Badge>
-                  
+
                   <div className="w-full mt-4 space-y-2 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Mail className="h-4 w-4" />

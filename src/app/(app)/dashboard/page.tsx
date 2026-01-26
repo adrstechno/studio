@@ -29,6 +29,8 @@ import { cn } from '@/lib/utils';
 type DashboardStats = {
   totalEmployees: number;
   totalProjects: number;
+  totalInterns: number;
+  activeInterns: number;
   completedTasks: number;
   inProgressTasks: number;
   todoTasks: number;
@@ -118,6 +120,17 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-4xl font-bold">{stats.totalEmployees}</div>
             <p className="text-xs text-muted-foreground">Active team members</p>
+          </CardContent>
+
+        </Card>
+        <Card className="relative transition-all hover:shadow-lg hover:-translate-y-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Interns</CardTitle>
+            <Users className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold">{stats.totalInterns}</div>
+            <p className="text-xs text-muted-foreground">{stats.activeInterns} currently active</p>
           </CardContent>
 
         </Card>

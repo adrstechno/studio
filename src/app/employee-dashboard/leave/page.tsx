@@ -16,16 +16,14 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { leaveRequests, employees } from '@/lib/data';
 
 export default function EmployeeLeavePage() {
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
 
     const currentEmployee = user ? employees.find(e => e.email === user.email) : null;
     const myLeaveRequests = currentEmployee

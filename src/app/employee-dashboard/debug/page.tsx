@@ -3,14 +3,12 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page-header';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 export default function DebugPage() {
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
     const [employeeData, setEmployeeData] = React.useState<any>(null);
     const [allEmployees, setAllEmployees] = React.useState<any[]>([]);
 
@@ -23,9 +21,9 @@ export default function DebugPage() {
             if (empRes.ok) {
                 const employees = await empRes.json();
                 setAllEmployees(employees);
-                
+
                 // Find current employee by loginEmail or email
-                const current = employees.find((e: any) => 
+                const current = employees.find((e: any) =>
                     e.loginEmail === user.email || e.email === user.email
                 );
                 setEmployeeData(current);
@@ -125,7 +123,7 @@ export default function DebugPage() {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <p className="text-sm">
-                                Your Firebase login email (<code className="bg-muted px-2 py-1 rounded">{user?.email}</code>) 
+                                Your Firebase login email (<code className="bg-muted px-2 py-1 rounded">{user?.email}</code>)
                                 does not match any employee record in the database.
                             </p>
                             <p className="text-sm font-semibold">To fix this:</p>

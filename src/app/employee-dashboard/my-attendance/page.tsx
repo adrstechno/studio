@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/page-header';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { Clock, LogIn, LogOut, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -31,8 +30,7 @@ const statusColors = {
 };
 
 export default function MyAttendancePage() {
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
     const { toast } = useToast();
     const [date, setDate] = React.useState<Date | undefined>(undefined);
     const [currentTime, setCurrentTime] = React.useState<Date | null>(null);

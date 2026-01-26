@@ -69,9 +69,12 @@ type Task = {
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   dueDate?: string;
   approvalStatus: 'Pending' | 'Approved' | 'Rejected';
-  assigneeId: string;
+  assigneeId?: string;
+  assigneeType: 'Employee' | 'Intern';
+  internId?: string;
   projectId: string;
   assignee?: { id: string; name: string; email: string; avatarUrl?: string };
+  intern?: { id: string; name: string; email: string; avatarUrl?: string };
   project?: { id: string; name: string };
   createdAt: string;
   comments?: Array<{ id: string; content: string; createdAt: string; author?: { name: string } }>;
@@ -106,6 +109,9 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
   const config = statusConfig[task.status];
   const priorityConf = priorityConfig[task.priority];
 
+  // Get the assignee (either employee or intern)
+  const assignee = task.assigneeType === 'Intern' ? task.intern : task.assignee;
+
   return (
     <Card className="hover:bg-muted/50 transition-all duration-200 group cursor-pointer" onClick={onClick}>
       <CardContent className="p-4 flex items-center gap-4">
@@ -133,11 +139,16 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
                   {format(new Date(task.dueDate), 'MMM dd')}
                 </span>
               )}
-              {task.assignee && (
-                <Avatar className="h-7 w-7">
-                  <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
-                  <AvatarFallback>{task.assignee.name.charAt(0)}</AvatarFallback>
-                </Avatar>
+              {assignee && (
+                <div className="flex items-center gap-1">
+                  <Avatar className="h-7 w-7">
+                    <AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
+                    <AvatarFallback>{assignee.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  {task.assigneeType === 'Intern' && (
+                    <span className="text-xs text-muted-foreground">(I)</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -401,6 +412,7 @@ export default function TasksPage() {
               {Array.isArray(filteredTasks) && filteredTasks.length > 0 ? filteredTasks.map((task) => {
                 const priorityConf = priorityConfig[task?.priority || 'Medium'];
                 const statusConf = statusConfig[task?.status || 'ToDo'];
+                const assignee = task?.assigneeType === 'Intern' ? task?.intern : task?.assignee;
                 return (
                   <TableRow key={task?.id} className="cursor-pointer" onClick={() => setSelectedTask(task)}>
                     <TableCell className="font-medium">{task?.title || 'Untitled'}</TableCell>
@@ -420,10 +432,15 @@ export default function TasksPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={task?.assignee?.avatarUrl} />
-                          <AvatarFallback>{task?.assignee?.name?.charAt(0) || '?'}</AvatarFallback>
+                          <AvatarImage src={assignee?.avatarUrl} />
+                          <AvatarFallback>{assignee?.name?.charAt(0) || '?'}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm">{task?.assignee?.name || 'Unassigned'}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{assignee?.name || 'Unassigned'}</span>
+                          {task?.assigneeType === 'Intern' && (
+                            <span className="text-xs text-muted-foreground">Intern</span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{task?.project?.name || 'No Project'}</TableCell>
@@ -592,14 +609,23 @@ export default function TasksPage() {
                   <div>
                     <h4 className="font-semibold mb-2 text-sm">Assignee</h4>
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={selectedTask.assignee?.avatarUrl} />
-                        <AvatarFallback>{selectedTask.assignee?.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{selectedTask.assignee?.name}</p>
-                        <p className="text-xs text-muted-foreground">{selectedTask.assignee?.email}</p>
-                      </div>
+                      {(() => {
+                        const assignee = selectedTask.assigneeType === 'Intern' ? selectedTask.intern : selectedTask.assignee;
+                        return (
+                          <>
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={assignee?.avatarUrl} />
+                              <AvatarFallback>{assignee?.name?.charAt(0) || '?'}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">{assignee?.name || 'Unassigned'}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {assignee?.email} {selectedTask.assigneeType === 'Intern' && '(Intern)'}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div>

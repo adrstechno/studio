@@ -16,8 +16,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { useAuth } from '@/firebase';
-import { useUser } from '@/firebase/auth/use-user';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Clock } from 'lucide-react';
@@ -32,8 +31,7 @@ const mockAttendance = [
 ];
 
 export default function EmployeeAttendancePage() {
-    const auth = useAuth();
-    const { user } = useUser(auth);
+    const { user } = useAuth();
 
     const statusColors: Record<string, string> = {
         Present: 'text-green-400 bg-green-900/20 border-green-400/20',
