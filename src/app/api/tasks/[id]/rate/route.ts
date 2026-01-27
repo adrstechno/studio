@@ -67,35 +67,51 @@ export async function PATCH(
 
         // Create notification for the intern/employee about the rating
         if (task.internId && task.intern) {
-            await createNotification({
-                type: 'task_rated',
-                priority: 'medium',
-                title: 'Task Rated',
-                message: `Your task "${task.title}" has been rated ${rating}/5 stars`,
-                userId: task.intern.id,
-                actionUrl: '/intern-dashboard/tasks',
-                actionLabel: 'View Tasks',
-                metadata: JSON.stringify({
-                    taskId: task.id,
-                    rating: rating,
-                    feedback: feedback,
-                }),
+            // Get the user ID for the intern
+            const internUser = await db.user.findFirst({
+                where: { internId: task.intern.id },
+                select: { id: true },
             });
+            
+            if (internUser) {
+                await createNotification({
+                    type: 'task',
+                    priority: 'medium',
+                    title: 'Task Rated',
+                    message: `Your task "${task.title}" has been rated ${rating}/5 stars${feedback ? ` with feedback` : ''}`,
+                    userId: internUser.id,
+                    actionUrl: '/intern-dashboard/tasks',
+                    actionLabel: 'View Tasks',
+                    metadata: {
+                        taskId: task.id,
+                        rating: rating,
+                        feedback: feedback || '',
+                    },
+                });
+            }
         } else if (task.assigneeId && task.assignee) {
-            await createNotification({
-                type: 'task_rated',
-                priority: 'medium',
-                title: 'Task Rated',
-                message: `Your task "${task.title}" has been rated ${rating}/5 stars`,
-                userId: task.assignee.id,
-                actionUrl: '/employee-dashboard/tasks',
-                actionLabel: 'View Tasks',
-                metadata: JSON.stringify({
-                    taskId: task.id,
-                    rating: rating,
-                    feedback: feedback,
-                }),
+            // Get the user ID for the employee
+            const employeeUser = await db.user.findFirst({
+                where: { employeeId: task.assignee.id },
+                select: { id: true },
             });
+            
+            if (employeeUser) {
+                await createNotification({
+                    type: 'task',
+                    priority: 'medium',
+                    title: 'Task Rated',
+                    message: `Your task "${task.title}" has been rated ${rating}/5 stars${feedback ? ` with feedback` : ''}`,
+                    userId: employeeUser.id,
+                    actionUrl: '/employee-dashboard/tasks',
+                    actionLabel: 'View Tasks',
+                    metadata: {
+                        taskId: task.id,
+                        rating: rating,
+                        feedback: feedback || '',
+                    },
+                });
+            }
         }
 
         return NextResponse.json(updatedTask);

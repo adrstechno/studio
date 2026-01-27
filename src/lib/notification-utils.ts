@@ -1,4 +1,5 @@
 import { NotificationType, NotificationPriority } from '@/contexts/notification-context';
+import { db } from '@/lib/db';
 
 export type CreateNotificationParams = {
   userId: string;
@@ -13,20 +14,22 @@ export type CreateNotificationParams = {
 
 export async function createNotification(params: CreateNotificationParams) {
   try {
-    const response = await fetch('/api/notifications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...params,
+    // Create notification directly in database instead of using fetch
+    const notification = await db.notification.create({
+      data: {
+        userId: params.userId,
+        type: params.type,
         priority: params.priority || 'medium',
-      }),
+        title: params.title,
+        message: params.message,
+        actionUrl: params.actionUrl,
+        actionLabel: params.actionLabel,
+        metadata: params.metadata ? JSON.stringify(params.metadata) : null,
+        read: false,
+      },
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to create notification');
-    }
-
-    return await response.json();
+    return notification;
   } catch (error) {
     console.error('Error creating notification:', error);
     throw error;
@@ -126,21 +129,37 @@ export async function sendBulkNotifications(
 // Helper to get user ID from employee/intern email
 export async function getUserIdFromEmail(email: string): Promise<string | null> {
   try {
-    // First try to find in employees
-    const empRes = await fetch(`/api/employees?email=${encodeURIComponent(email)}`);
-    if (empRes.ok) {
-      const employees = await empRes.json();
-      const employee = Array.isArray(employees) ? employees.find((e: any) => e.email === email) : null;
-      if (employee?.user?.id) return employee.user.id;
-    }
+    // First try to find user by email directly
+    const user = await db.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
 
-    // Then try interns
-    const internRes = await fetch(`/api/interns?email=${encodeURIComponent(email)}`);
-    if (internRes.ok) {
-      const interns = await internRes.json();
-      const intern = Array.isArray(interns) ? interns.find((i: any) => i.email === email) : null;
-      if (intern?.user?.id) return intern.user.id;
-    }
+    if (user) return user.id;
+
+    // If not found, try to find employee and get their user
+    const employee = await db.employee.findUnique({
+      where: { email },
+      select: {
+        user: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (employee?.user?.id) return employee.user.id;
+
+    // Finally, try to find intern and get their user
+    const intern = await db.intern.findUnique({
+      where: { email },
+      select: {
+        user: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (intern?.user?.id) return intern.user.id;
 
     return null;
   } catch (error) {
