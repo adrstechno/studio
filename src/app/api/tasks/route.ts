@@ -58,24 +58,27 @@ export async function POST(request: NextRequest) {
             requestedBy
         } = body;
 
-        if (!title || !projectId) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        if (!title) {
+            return NextResponse.json({ error: 'Task title is required' }, { status: 400 });
         }
 
         if (!assigneeId || !assigneeType) {
             return NextResponse.json({ error: 'Assignee information is required' }, { status: 400 });
         }
 
-        // Validate assignee exists and is part of the project
-        const project = await db.project.findUnique({
-            where: { id: projectId }
-        });
+        // If projectId is provided, validate it
+        let project = null;
+        if (projectId) {
+            project = await db.project.findUnique({
+                where: { id: projectId }
+            });
 
-        if (!project) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+            if (!project) {
+                return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+            }
         }
 
-        // Validate assignee is part of the project
+        // Validate assignee exists
         if (assigneeType === 'Intern') {
             const intern = await db.intern.findUnique({
                 where: { id: assigneeId }
@@ -85,22 +88,24 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Intern not found' }, { status: 404 });
             }
 
-            // Check if intern is assigned to this project
-            let internProjects: string[] = [];
-            if (intern.projects) {
-                try {
-                    internProjects = JSON.parse(intern.projects);
-                } catch {
+            // Only check project assignment if a project is specified
+            if (projectId && project) {
+                let internProjects: string[] = [];
+                if (intern.projects) {
+                    try {
+                        internProjects = JSON.parse(intern.projects);
+                    } catch {
+                        internProjects = [intern.project];
+                    }
+                } else if (intern.project && intern.project !== 'Unassigned') {
                     internProjects = [intern.project];
                 }
-            } else if (intern.project && intern.project !== 'Unassigned') {
-                internProjects = [intern.project];
-            }
 
-            if (!internProjects.includes(project.name)) {
+                if (!internProjects.includes(project.name)) {
                 return NextResponse.json({
                     error: 'Intern is not assigned to this project'
                 }, { status: 400 });
+            }
             }
         } else {
             const employee = await db.employee.findUnique({
@@ -111,22 +116,24 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
             }
 
-            // Check if employee is assigned to this project
-            let employeeProjects: string[] = [];
-            if (employee.projects) {
-                try {
-                    employeeProjects = JSON.parse(employee.projects);
-                } catch {
+            // Only check project assignment if a project is specified
+            if (projectId && project) {
+                let employeeProjects: string[] = [];
+                if (employee.projects) {
+                    try {
+                        employeeProjects = JSON.parse(employee.projects);
+                    } catch {
+                        employeeProjects = [employee.project];
+                    }
+                } else if (employee.project && employee.project !== 'Unassigned') {
                     employeeProjects = [employee.project];
                 }
-            } else if (employee.project && employee.project !== 'Unassigned') {
-                employeeProjects = [employee.project];
-            }
 
-            if (!employeeProjects.includes(project.name)) {
-                return NextResponse.json({
-                    error: 'Employee is not assigned to this project'
-                }, { status: 400 });
+                if (!employeeProjects.includes(project.name)) {
+                    return NextResponse.json({
+                        error: 'Employee is not assigned to this project'
+                    }, { status: 400 });
+                }
             }
         }
 

@@ -151,7 +151,20 @@ export default function MyInternsPage() {
         return;
       }
 
-      const currentEmployee = await empRes.json();
+      const empData = await empRes.json();
+      const currentEmployee = empData.employee; // Extract employee from nested object
+      
+      if (!currentEmployee || !currentEmployee.id) {
+        console.error('Employee data not found or missing ID');
+        toast({
+          title: 'Error',
+          description: 'Could not load your employee profile',
+          variant: 'destructive',
+        });
+        setLoading(false);
+        return;
+      }
+      
       setEmployeeId(currentEmployee.id);
 
       // Fetch interns where this employee is the mentor
@@ -197,10 +210,10 @@ export default function MyInternsPage() {
   };
 
   const handleAssignTask = async () => {
-    if (!selectedIntern || !newTask.title || !newTask.projectId) {
+    if (!selectedIntern || !newTask.title) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields',
+        description: 'Please fill in the task title',
         variant: 'destructive',
       });
       return;
@@ -212,6 +225,8 @@ export default function MyInternsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newTask,
+          // Convert 'none' to empty string or null for optional project
+          projectId: newTask.projectId === 'none' || !newTask.projectId ? null : newTask.projectId,
           assigneeId: selectedIntern.id,
           assigneeType: 'Intern',
           status: 'ToDo',
@@ -331,7 +346,7 @@ export default function MyInternsPage() {
 
   const getAverageRating = (intern: Intern) => {
     if (!intern.evaluations || intern.evaluations.length === 0) return 0;
-    const sum = intern.evaluations.reduce((acc, eval) => acc + eval.rating, 0);
+    const sum = intern.evaluations.reduce((acc, evaluation) => acc + evaluation.rating, 0);
     return sum / intern.evaluations.length;
   };
 
@@ -735,15 +750,16 @@ export default function MyInternsPage() {
               </div>
             </div>
             <div>
-              <Label>Project *</Label>
+              <Label>Project (Optional)</Label>
               <Select
                 value={newTask.projectId}
                 onValueChange={(value) => setNewTask({ ...newTask, projectId: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
+                  <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">None (General Task)</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}

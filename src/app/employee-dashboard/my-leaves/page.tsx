@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +25,14 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from '@/components/ui/form';
+import {
     Table,
     TableBody,
     TableCell,
@@ -35,6 +45,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { PlusCircle, Calendar, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+
+import { leaveRequestSchema, type LeaveRequestValues } from '@/lib/form-validation';
 
 type LeaveRequest = {
     id: string;
@@ -82,12 +94,17 @@ export default function MyLeavesPage() {
     const [leaveRequests, setLeaveRequests] = React.useState<LeaveRequest[]>([]);
     const [leaveQuotas, setLeaveQuotas] = React.useState<LeaveQuotas | null>(null);
 
-    const [formData, setFormData] = React.useState({
-        startDate: '',
-        endDate: '',
-        leaveType: 'Casual',
-        leaveDuration: 'FullDay',
-        reason: '',
+    // Form for leave request
+    const form = useForm<LeaveRequestValues>({
+        resolver: zodResolver(leaveRequestSchema),
+        mode: 'onChange',
+        defaultValues: {
+            startDate: '',
+            endDate: '',
+            leaveType: 'Casual',
+            leaveDuration: 'FullDay',
+            reason: '',
+        },
     });
 
     // Fetch employee and leave data
@@ -150,28 +167,17 @@ export default function MyLeavesPage() {
         workFromHome: { total: 4, used: 0, remaining: 4 },
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (values: LeaveRequestValues) => {
         if (!employeeId) return;
         setLoading(true);
 
         try {
-            // Validate dates
-            if (new Date(formData.startDate) > new Date(formData.endDate)) {
-                toast({
-                    title: 'Invalid Dates',
-                    description: 'End date must be after start date',
-                    variant: 'destructive',
-                });
-                return;
-            }
-
             const res = await fetch('/api/leave-requests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     employeeId,
-                    ...formData,
+                    ...values,
                 }),
             });
 
@@ -186,13 +192,7 @@ export default function MyLeavesPage() {
             });
 
             setOpen(false);
-            setFormData({
-                startDate: '',
-                endDate: '',
-                leaveType: 'Casual',
-                leaveDuration: 'FullDay',
-                reason: '',
-            });
+            form.reset();
         } catch (error) {
             toast({
                 title: 'Error',
@@ -270,82 +270,108 @@ export default function MyLeavesPage() {
                                 Fill in the details below to submit your leave request.
                             </DialogDescription>
                         </DialogHeader>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="startDate">Start Date</Label>
-                                    <Input
-                                        id="startDate"
-                                        type="date"
-                                        value={formData.startDate}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                                        required
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="startDate"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Start Date *</FormLabel>
+                                                <FormControl>
+                                                    <Input type="date" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="endDate"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>End Date *</FormLabel>
+                                                <FormControl>
+                                                    <Input type="date" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="endDate">End Date</Label>
-                                    <Input
-                                        id="endDate"
-                                        type="date"
-                                        value={formData.endDate}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="leaveType">Leave Type</Label>
-                                <Select
-                                    value={formData.leaveType}
-                                    onValueChange={(value) => setFormData(prev => ({ ...prev, leaveType: value }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {leaveTypes.map(type => (
-                                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="leaveDuration">Duration</Label>
-                                <Select
-                                    value={formData.leaveDuration}
-                                    onValueChange={(value) => setFormData(prev => ({ ...prev, leaveDuration: value }))}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="FullDay">Full Day</SelectItem>
-                                        <SelectItem value="HalfDay">Half Day</SelectItem>
-                                        <SelectItem value="FirstHalf">First Half</SelectItem>
-                                        <SelectItem value="SecondHalf">Second Half</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="reason">Reason</Label>
-                                <Textarea
-                                    id="reason"
-                                    placeholder="Please provide a reason for your leave..."
-                                    value={formData.reason}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-                                    required
-                                    rows={4}
+                                <FormField
+                                    control={form.control}
+                                    name="leaveType"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Leave Type *</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select leave type" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {leaveTypes.map(type => (
+                                                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                                    Cancel
-                                </Button>
-                                <Button type="submit" disabled={loading}>
-                                    {loading ? 'Submitting...' : 'Submit Request'}
-                                </Button>
-                            </div>
-                        </form>
+                                <FormField
+                                    control={form.control}
+                                    name="leaveDuration"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Duration *</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select duration" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="FullDay">Full Day</SelectItem>
+                                                    <SelectItem value="HalfDay">Half Day</SelectItem>
+                                                    <SelectItem value="FirstHalf">First Half</SelectItem>
+                                                    <SelectItem value="SecondHalf">Second Half</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="reason"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Reason *</FormLabel>
+                                            <FormControl>
+                                                <Textarea 
+                                                    placeholder="Please provide a reason for your leave..."
+                                                    rows={4}
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className="flex justify-end gap-3">
+                                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={loading || !form.formState.isValid}>
+                                        {loading ? 'Submitting...' : 'Submit Request'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </Form>
                     </DialogContent>
                 </Dialog>
             </PageHeader>

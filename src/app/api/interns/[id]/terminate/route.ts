@@ -4,15 +4,16 @@ import { db as prisma } from '@/lib/db';
 // POST /api/interns/[id]/terminate - Terminate an internship early
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await request.json();
         const { reason } = body;
 
         // Update intern status to Terminated
         const intern = await prisma.intern.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 status: 'Terminated',
                 terminationDate: new Date(),

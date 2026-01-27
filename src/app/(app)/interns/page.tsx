@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,14 +48,14 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { MoreHorizontal, PlusCircle, FileText, UserCog, Trash2, Search, Users, LoaderCircle, UserX, ImagePlus, GraduationCap, Calendar, DollarSign, Star, XCircle, FolderKanban } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, FileText, UserCog, Trash2, Search, Users, LoaderCircle, UserX, ImagePlus, GraduationCap, Calendar, DollarSign, Star, XCircle, FolderKanban, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoading, LoadingOverlay, LoadingButton } from '@/hooks/use-loading';
 import { useApiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
-import { internFormSchema, type InternFormValues } from '@/lib/form-validation';
+import { internFormSchema, taskFormSchema, type InternFormValues, type TaskFormValues } from '@/lib/form-validation';
 
 type Intern = {
     id: string;
@@ -125,6 +124,7 @@ export default function InternsPage() {
     const [uploadingImage, setUploadingImage] = React.useState(false);
     const [previewImage, setPreviewImage] = React.useState<string>('');
     const [selectedProjects, setSelectedProjects] = React.useState<string[]>([]);
+    const [createTaskDialogOpen, setCreateTaskDialogOpen] = React.useState(false);
     const { toast } = useToast();
     const { isLoading } = useLoading();
     const apiClient = useApiClient();
@@ -140,15 +140,31 @@ export default function InternsPage() {
             degree: '',
             startDate: '',
             endDate: '',
-            mentorId: '',
+            mentorId: 'none',
             project: '',
             avatarUrl: '',
+            stipendAmount: '',
         },
     });
 
     const editForm = useForm<InternFormValues>({
         resolver: zodResolver(internFormSchema),
         mode: 'onChange',
+    });
+
+    // Form for creating tasks
+    const taskForm = useForm<TaskFormValues>({
+        resolver: zodResolver(taskFormSchema),
+        mode: 'onChange',
+        defaultValues: {
+            title: '',
+            description: '',
+            priority: 'Medium',
+            dueDate: '',
+            projectId: '',
+            assigneeId: '',
+            assigneeType: 'Intern',
+        },
     });
 
     const fetchData = React.useCallback(async () => {
@@ -223,7 +239,16 @@ export default function InternsPage() {
     };
 
     const handleAddIntern = async (values: InternFormValues) => {
-        const result = await apiClient.post('/api/interns', values, {
+        // Convert 'none' mentor selection to null
+        // Convert empty strings to null for optional fields
+        const submitValues = {
+            ...values,
+            mentorId: values.mentorId === 'none' ? null : values.mentorId,
+            endDate: values.endDate && values.endDate.trim() !== '' ? values.endDate : null,
+            stipendAmount: values.stipendAmount && values.stipendAmount.trim() !== '' ? values.stipendAmount : null,
+        };
+        
+        const result = await apiClient.post('/api/interns', submitValues, {
             loadingKey: 'add-intern',
             successMessage: `${values.name} has been added as an intern`,
             showSuccessToast: true,
@@ -248,7 +273,16 @@ export default function InternsPage() {
     const handleUpdateIntern = async (values: InternFormValues) => {
         if (!selectedIntern) return;
         
-        const result = await apiClient.put(`/api/interns/${selectedIntern.id}`, values, {
+        // Convert 'none' mentor selection to null
+        // Convert empty strings to null for optional fields
+        const submitValues = {
+            ...values,
+            mentorId: values.mentorId === 'none' ? null : values.mentorId,
+            endDate: values.endDate && values.endDate.trim() !== '' ? values.endDate : null,
+            stipendAmount: values.stipendAmount && values.stipendAmount.trim() !== '' ? values.stipendAmount : null,
+        };
+        
+        const result = await apiClient.put(`/api/interns/${selectedIntern.id}`, submitValues, {
             loadingKey: 'update-intern',
             successMessage: `${values.name} has been updated`,
             showSuccessToast: true,
@@ -267,6 +301,26 @@ export default function InternsPage() {
             showSuccessToast: true,
             onSuccess: () => {
                 setInterns((prev) => prev.filter((i) => i.id !== intern.id));
+            }
+        });
+    };
+
+    const handleCreateTask = async (values: TaskFormValues) => {
+        if (!selectedIntern) return;
+        
+        const result = await apiClient.post('/api/tasks', {
+            ...values,
+            // Convert 'none' to null for optional project
+            projectId: values.projectId === 'none' || !values.projectId ? null : values.projectId,
+            assigneeId: selectedIntern.id,
+            assigneeType: 'Intern',
+        }, {
+            loadingKey: 'create-task',
+            successMessage: `Task "${values.title}" created for ${selectedIntern.name}`,
+            showSuccessToast: true,
+            onSuccess: () => {
+                setCreateTaskDialogOpen(false);
+                taskForm.reset();
             }
         });
     };
@@ -453,11 +507,12 @@ export default function InternsPage() {
                                                         phone: intern.phone || '',
                                                         university: intern.university || '',
                                                         degree: intern.degree || '',
-                                                        startDate: intern.startDate.split('T')[0],
-                                                        endDate: intern.endDate.split('T')[0],
-                                                        mentorId: intern.mentorId || '',
-                                                        project: intern.project,
+                                                        startDate: intern.startDate ? intern.startDate.split('T')[0] : '',
+                                                        endDate: intern.endDate ? intern.endDate.split('T')[0] : '',
+                                                        mentorId: intern.mentorId || 'none',
+                                                        project: intern.project || 'Unassigned',
                                                         avatarUrl: intern.avatarUrl || '',
+                                                        stipendAmount: intern.stipendAmount?.toString() || '',
                                                     });
                                                     setEditDialogOpen(true);
                                                 }}>
@@ -469,6 +524,21 @@ export default function InternsPage() {
                                                     setAssignDialogOpen(true);
                                                 }}>
                                                     <FolderKanban className="mr-2 h-4 w-4" />Assign Project
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => {
+                                                    setSelectedIntern(intern);
+                                                    taskForm.reset({
+                                                        title: '',
+                                                        description: '',
+                                                        priority: 'Medium',
+                                                        dueDate: '',
+                                                        projectId: intern.project !== 'Unassigned' ? projects.find(p => p.name === intern.project)?.id || '' : '',
+                                                        assigneeId: intern.id,
+                                                        assigneeType: 'Intern',
+                                                    });
+                                                    setCreateTaskDialogOpen(true);
+                                                }}>
+                                                    <Plus className="mr-2 h-4 w-4" />Create Task
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onClick={() => { setSelectedIntern(intern); setDetailsDialogOpen(true); }}>
                                                     <FileText className="mr-2 h-4 w-4" />View Details
@@ -559,20 +629,45 @@ export default function InternsPage() {
                                 )} />
                                 <FormField control={addForm.control} name="phone" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Phone</FormLabel>
-                                        <FormControl><Input placeholder="+1234567890" {...field} /></FormControl>
+                                        <FormLabel>Phone Number</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="tel" 
+                                                placeholder="9876543210" 
+                                                maxLength={10}
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">
+                                            Enter 10-digit mobile number or international format (optional)
+                                        </p>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={addForm.control} name="university" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>University</FormLabel>
-                                        <FormControl><Input placeholder="University name" {...field} /></FormControl>
+                                        <FormControl>
+                                            <Input 
+                                                placeholder="e.g., Indian Institute of Technology" 
+                                                maxLength={100}
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={addForm.control} name="degree" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Degree</FormLabel>
-                                        <FormControl><Input placeholder="e.g., B.Tech CS" {...field} /></FormControl>
+                                        <FormControl>
+                                            <Input 
+                                                placeholder="e.g., B.Tech Computer Science" 
+                                                maxLength={100}
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={addForm.control} name="startDate" render={({ field }) => (
@@ -589,21 +684,40 @@ export default function InternsPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
+                                <FormField control={addForm.control} name="stipendAmount" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Stipend Amount</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                placeholder="15000" 
+                                                min="0"
+                                                max="1000000"
+                                                step="1000"
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">Monthly stipend in ₹ (optional, max ₹10,00,000)</p>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                                 <FormField control={addForm.control} name="mentorId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Assign Mentor</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select mentor" />
+                                                    <SelectValue placeholder="Select mentor (optional)" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
+                                                <SelectItem value="none">No mentor</SelectItem>
                                                 {employees.map((emp) => (
                                                     <SelectItem key={emp.id} value={emp.id}>{emp.name} ({emp.role})</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={addForm.control} name="project" render={({ field }) => (
@@ -612,7 +726,7 @@ export default function InternsPage() {
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select project" />
+                                                    <SelectValue placeholder="Select project (optional)" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
@@ -622,6 +736,7 @@ export default function InternsPage() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                             </div>
@@ -631,6 +746,7 @@ export default function InternsPage() {
                                     type="submit" 
                                     loading={isLoading('add-intern')}
                                     loadingText="Adding..."
+                                    disabled={!addForm.formState.isValid}
                                 >
                                     Add Intern
                                 </LoadingButton>
@@ -666,20 +782,45 @@ export default function InternsPage() {
                                 )} />
                                 <FormField control={editForm.control} name="phone" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Phone</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormLabel>Phone Number</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="tel" 
+                                                placeholder="9876543210 or +919876543210" 
+                                                maxLength={15}
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">
+                                            Enter 10-digit mobile number or international format (optional)
+                                        </p>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={editForm.control} name="university" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>University</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl>
+                                            <Input 
+                                                placeholder="e.g., Indian Institute of Technology" 
+                                                maxLength={100}
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={editForm.control} name="degree" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Degree</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl>
+                                            <Input 
+                                                placeholder="e.g., B.Tech Computer Science" 
+                                                maxLength={100}
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={editForm.control} name="startDate" render={({ field }) => (
@@ -696,21 +837,40 @@ export default function InternsPage() {
                                         <FormMessage />
                                     </FormItem>
                                 )} />
+                                <FormField control={editForm.control} name="stipendAmount" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Stipend Amount</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                placeholder="15000" 
+                                                min="0"
+                                                max="1000000"
+                                                step="1000"
+                                                {...field} 
+                                            />
+                                        </FormControl>
+                                        <p className="text-xs text-muted-foreground">Monthly stipend in ₹ (optional, max ₹10,00,000)</p>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                                 <FormField control={editForm.control} name="mentorId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Mentor</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select mentor" />
+                                                    <SelectValue placeholder="Select mentor (optional)" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
+                                                <SelectItem value="none">No mentor</SelectItem>
                                                 {employees.map((emp) => (
                                                     <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                                 <FormField control={editForm.control} name="project" render={({ field }) => (
@@ -719,7 +879,7 @@ export default function InternsPage() {
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Select project" />
+                                                    <SelectValue placeholder="Select project (optional)" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
@@ -729,6 +889,7 @@ export default function InternsPage() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                             </div>
@@ -738,6 +899,7 @@ export default function InternsPage() {
                                     type="submit" 
                                     loading={isLoading('update-intern')}
                                     loadingText="Updating..."
+                                    disabled={!editForm.formState.isValid}
                                 >
                                     Update
                                 </LoadingButton>
@@ -933,6 +1095,134 @@ export default function InternsPage() {
                             Assign {selectedProjects.length > 0 && `(${selectedProjects.length})`}
                         </LoadingButton>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Create Task Dialog */}
+            <Dialog open={createTaskDialogOpen} onOpenChange={setCreateTaskDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Create Task for {selectedIntern?.name}</DialogTitle>
+                        <DialogDescription>
+                            Create a new task assignment for this intern.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...taskForm}>
+                        <form onSubmit={taskForm.handleSubmit(handleCreateTask)} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={taskForm.control}
+                                    name="title"
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2">
+                                            <FormLabel>Task Title *</FormLabel>
+                                            <FormControl>
+                                                <Input 
+                                                    placeholder="e.g., Complete user authentication module" 
+                                                    maxLength={200}
+                                                    {...field} 
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={taskForm.control}
+                                    name="description"
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2">
+                                            <FormLabel>Description</FormLabel>
+                                            <FormControl>
+                                                <Textarea 
+                                                    placeholder="Detailed description of the task requirements..."
+                                                    rows={4}
+                                                    maxLength={2000}
+                                                    {...field} 
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={taskForm.control}
+                                    name="priority"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Priority *</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select priority" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="Low">Low</SelectItem>
+                                                    <SelectItem value="Medium">Medium</SelectItem>
+                                                    <SelectItem value="High">High</SelectItem>
+                                                    <SelectItem value="Urgent">Urgent</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={taskForm.control}
+                                    name="dueDate"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Due Date</FormLabel>
+                                            <FormControl>
+                                                <Input type="date" {...field} />
+                                            </FormControl>
+                                            <p className="text-xs text-muted-foreground">Optional deadline for task completion</p>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={taskForm.control}
+                                    name="projectId"
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2">
+                                            <FormLabel>Project (Optional)</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select project (optional)" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None (General Task)</SelectItem>
+                                                    {projects.map((project) => (
+                                                        <SelectItem key={project.id} value={project.id}>
+                                                            {project.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setCreateTaskDialogOpen(false)}>
+                                    Cancel
+                                </Button>
+                                <LoadingButton 
+                                    type="submit" 
+                                    loading={isLoading('create-task')}
+                                    loadingText="Creating..."
+                                    disabled={!taskForm.formState.isValid}
+                                >
+                                    Create Task
+                                </LoadingButton>
+                            </DialogFooter>
+                        </form>
+                    </Form>
                 </DialogContent>
             </Dialog>
         </>

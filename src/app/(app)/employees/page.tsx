@@ -4,7 +4,6 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -436,6 +435,7 @@ export default function EmployeesPage() {
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>ADRS ID</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Team</TableHead>
@@ -490,6 +490,13 @@ export default function EmployeesPage() {
                       <code className="text-sm bg-primary/10 text-primary px-2 py-1 rounded font-mono">
                         {employee.adrsId}
                       </code>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not set</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {employee?.phone ? (
+                      <span className="text-sm">{employee.phone}</span>
                     ) : (
                       <span className="text-sm text-muted-foreground">Not set</span>
                     )}
@@ -721,9 +728,16 @@ export default function EmployeesPage() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="+1234567890" {...field} />
+                          <Input 
+                            type="tel" 
+                            placeholder="9876543210" 
+                            maxLength={10}
+                            {...field} 
+                          />
                         </FormControl>
-                        <p className="text-xs text-muted-foreground">Include country code (optional)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Enter 10-digit mobile number or international format (optional)
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -912,9 +926,16 @@ export default function EmployeesPage() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="+1234567890" {...field} />
+                          <Input 
+                            type="tel" 
+                            placeholder="9876543210 or +919876543210" 
+                            maxLength={15}
+                            {...field} 
+                          />
                         </FormControl>
-                        <p className="text-xs text-muted-foreground">Include country code (optional)</p>
+                        <p className="text-xs text-muted-foreground">
+                          Enter 10-digit mobile number or international format (optional)
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1091,10 +1112,14 @@ export default function EmployeesPage() {
               <div>
                 <h3 className="text-xl font-semibold">{selectedEmployee?.name}</h3>
                 <p className="text-muted-foreground">{selectedEmployee?.email}</p>
+                {selectedEmployee?.phone && (
+                  <p className="text-sm text-muted-foreground">{selectedEmployee.phone}</p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 pt-4 border-t">
               <div><p className="text-sm text-muted-foreground">ID</p><p className="font-medium">{selectedEmployee?.id}</p></div>
+              <div><p className="text-sm text-muted-foreground">Phone</p><p className="font-medium">{selectedEmployee?.phone || 'Not set'}</p></div>
               <div><p className="text-sm text-muted-foreground">Role</p><Badge variant="outline" className={roleColors[selectedEmployee?.role || 'Developer']}>{selectedEmployee?.role}</Badge></div>
               <div>
                 <p className="text-sm text-muted-foreground">Projects</p>

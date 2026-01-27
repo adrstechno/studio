@@ -4,11 +4,12 @@ import { db as prisma } from '@/lib/db';
 // GET /api/interns/[id] - Get a specific intern
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const intern = await prisma.intern.findUnique({
-            where: { id: params.id },
+            where: { id },
             include: {
                 evaluations: {
                     orderBy: { createdAt: 'desc' },
@@ -54,9 +55,10 @@ export async function GET(
 // PUT /api/interns/[id] - Update an intern
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await request.json();
         const {
             name,
@@ -90,14 +92,28 @@ export async function PUT(
         if (university !== undefined) updateData.university = university;
         if (degree !== undefined) updateData.degree = degree;
         if (startDate !== undefined) updateData.startDate = new Date(startDate);
-        if (endDate !== undefined) updateData.endDate = new Date(endDate);
-        if (stipendAmount !== undefined) updateData.stipendAmount = parseFloat(stipendAmount);
+        // Only set endDate if it's provided and not empty
+        if (endDate !== undefined && endDate !== '' && endDate !== null) {
+            const parsedEndDate = new Date(endDate);
+            // Only set if it's a valid date
+            if (!isNaN(parsedEndDate.getTime())) {
+                updateData.endDate = parsedEndDate;
+            }
+        } else if (endDate === '' || endDate === null) {
+            // Explicitly set to null if empty string or null is provided
+            updateData.endDate = null;
+        }
+        if (stipendAmount !== undefined && stipendAmount !== '') {
+            updateData.stipendAmount = parseFloat(stipendAmount);
+        } else if (stipendAmount === '') {
+            updateData.stipendAmount = null;
+        }
         if (mentorId !== undefined) updateData.mentorId = mentorId;
         if (project !== undefined) updateData.project = project;
         if (status !== undefined) updateData.status = status;
 
         const intern = await prisma.intern.update({
-            where: { id: params.id },
+            where: { id },
             data: updateData,
         });
 
@@ -120,11 +136,12 @@ export async function PUT(
 // DELETE /api/interns/[id] - Delete an intern
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         await prisma.intern.delete({
-            where: { id: params.id },
+            where: { id },
         });
 
         return NextResponse.json({ message: 'Intern deleted successfully' });
