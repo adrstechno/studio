@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
 import {
@@ -27,6 +28,18 @@ const chartConfig = {
 };
 
 export function ProjectStatusChart({ projects }: ProjectStatusChartProps) {
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const statusColors: Record<Project['status'], string> = {
     'On Track': 'hsl(var(--chart-1))',
     'At Risk': 'hsl(var(--chart-3))',
@@ -39,29 +52,37 @@ export function ProjectStatusChart({ projects }: ProjectStatusChartProps) {
   }));
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Project Progress</CardTitle>
-        <CardDescription>
-          An overview of current project completion percentages.
+    <Card className="h-full overflow-hidden">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base sm:text-lg">Project Progress</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">
+          Overview of project completion percentages.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[250px] w-full h-[300px]">
+      <CardContent className="p-2 sm:p-6">
+        <ChartContainer config={chartConfig} className="h-[180px] sm:h-[280px] md:h-[350px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               accessibilityLayer
               data={chartData}
-              margin={{ top: 5, right: 10, left: 20, bottom: 5 }}
+              margin={{ 
+                top: 5, 
+                right: 5, 
+                left: 0, 
+                bottom: 5 
+              }}
               layout="vertical"
+              barSize={isMobile ? 10 : 20}
             >
               <CartesianGrid horizontal={false} />
               <YAxis
                 type="category"
                 dataKey="name"
                 tickLine={false}
-                tickMargin={10}
+                tickMargin={4}
                 axisLine={false}
+                width={isMobile ? 50 : 100}
+                tick={{ fontSize: isMobile ? 9 : 12 }}
               />
               <XAxis
                 type="number"
@@ -78,16 +99,16 @@ export function ProjectStatusChart({ projects }: ProjectStatusChartProps) {
                       payload?.[0]?.payload.name ?? label
                     }
                     formatter={(value, name, item) => (
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.payload.fill }} />
-                        <span className="text-sm">{`${value}% - ${item.payload.status}`}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.payload.fill }} />
+                        <span className="text-xs">{`${value}% - ${item.payload.status}`}</span>
                       </div>
                     )}
                     indicator="dot"
                   />
                 }
               />
-              <Bar dataKey="progress" radius={5}>
+              <Bar dataKey="progress" radius={3}>
                 {chartData.map((entry) => (
                   <Cell key={`cell-${entry.id}`} fill={entry.fill} />
                 ))}

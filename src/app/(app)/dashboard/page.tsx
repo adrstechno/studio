@@ -294,14 +294,14 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-5 mt-6">
-        <div className="md:col-span-3">
+      <div className="grid gap-6 lg:grid-cols-5 mt-6">
+        <div className="lg:col-span-3">
           <ProjectStatusChart projects={projects.map(p => ({
             ...p,
             status: p.status === 'OnTrack' ? 'On Track' : p.status === 'AtRisk' ? 'At Risk' : 'Completed'
           }))} />
         </div>
-        <Card className="md:col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity />
