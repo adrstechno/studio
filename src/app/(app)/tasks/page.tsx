@@ -210,6 +210,7 @@ export default function TasksPage() {
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [selectedTask, setSelectedTask] = React.useState<Task | null>(null);
   const [viewMode, setViewMode] = React.useState<'board' | 'list'>('board');
+  const [dueDatePopoverOpen, setDueDatePopoverOpen] = React.useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -515,7 +516,12 @@ export default function TasksPage() {
       )}
 
       {/* Create Task Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={(open) => {
+        setCreateDialogOpen(open);
+        if (!open) {
+          setDueDatePopoverOpen(false);
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Task</DialogTitle>
@@ -557,18 +563,19 @@ export default function TasksPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Due Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn('justify-start text-left font-normal', !newTask.dueDate && 'text-muted-foreground')}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {newTask.dueDate ? format(newTask.dueDate, 'PPP') : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar mode="single" selected={newTask.dueDate} onSelect={(date) => setNewTask({ ...newTask, dueDate: date })} initialFocus />
-                  </PopoverContent>
-                </Popover>
+                <Label>Due Date (Optional)</Label>
+                <Input
+                  type="date"
+                  value={newTask.dueDate ? format(newTask.dueDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => {
+                    const dateValue = e.target.value;
+                    setNewTask({ 
+                      ...newTask, 
+                      dueDate: dateValue ? new Date(dateValue) : undefined 
+                    });
+                  }}
+                  min={format(new Date(), 'yyyy-MM-dd')}
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
