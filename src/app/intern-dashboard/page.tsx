@@ -20,6 +20,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/hooks/use-auth';
+import { useRealTimeInternData } from '@/hooks/use-real-time-intern-data';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -50,10 +51,7 @@ type Project = {
 export default function InternDashboardPage() {
     const { user } = useAuth();
     const [currentTime, setCurrentTime] = React.useState(new Date());
-    const [loading, setLoading] = React.useState(true);
-    const [myTasks, setMyTasks] = React.useState<Task[]>([]);
-    const [myEvaluations, setMyEvaluations] = React.useState<Evaluation[]>([]);
-    const [myProjects, setMyProjects] = React.useState<Project[]>([]);
+    const { data, loading, error, lastUpdated, refresh } = useRealTimeInternData(user?.email || null);
 
     // Update clock every second
     React.useEffect(() => {
@@ -61,68 +59,11 @@ export default function InternDashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Fetch intern data
-    React.useEffect(() => {
-        const fetchData = async () => {
-            if (!user?.email) return;
-            try {
-                // Get intern by email
-                const internRes = await fetch(`/api/interns?email=${encodeURIComponent(user.email)}`);
-                if (!internRes.ok) {
-                    console.error('Failed to fetch intern');
-                    setLoading(false);
-                    return;
-                }
-
-                const interns = await internRes.json();
-                const currentIntern = Array.isArray(interns) ? interns.find((i: any) => i.email === user.email) : null;
-
-                if (currentIntern?.id) {
-                    // Fetch tasks
-                    const tasksRes = await fetch(`/api/tasks?assigneeId=${currentIntern.id}&assigneeType=Intern`);
-                    if (tasksRes.ok) {
-                        const tasksData = await tasksRes.json();
-                        setMyTasks(Array.isArray(tasksData) ? tasksData : []);
-                    }
-
-                    // Fetch evaluations
-                    const evalRes = await fetch(`/api/interns/${currentIntern.id}/evaluations`);
-                    if (evalRes.ok) {
-                        const evalData = await evalRes.json();
-                        setMyEvaluations(Array.isArray(evalData) ? evalData : []);
-                    }
-
-                    // Fetch projects
-                    const projectsRes = await fetch('/api/projects');
-                    if (projectsRes.ok) {
-                        const allProjects = await projectsRes.json();
-                        if (Array.isArray(allProjects)) {
-                            let internProjects: string[] = [];
-                            if (currentIntern.projects) {
-                                try {
-                                    internProjects = JSON.parse(currentIntern.projects);
-                                } catch {
-                                    internProjects = [currentIntern.project];
-                                }
-                            } else if (currentIntern.project && currentIntern.project !== 'Unassigned') {
-                                internProjects = [currentIntern.project];
-                            }
-                            
-                            const filteredProjects = allProjects.filter((p: Project) =>
-                                internProjects.includes(p.name)
-                            );
-                            setMyProjects(filteredProjects);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, [user?.email]);
+    // Extract data from the hook
+    const myTasks = data?.tasks || [];
+    const myEvaluations = data?.evaluations || [];
+    const myProjects = data?.projects || [];
+    const currentIntern = data?.intern;
 
     const inProgressTasks = (myTasks || []).filter(t => t?.status === 'InProgress').length;
     const completedTasks = (myTasks || []).filter(t => t?.status === 'Done').length;
@@ -144,28 +85,64 @@ export default function InternDashboardPage() {
         );
     }
 
+    if (error) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-500 mb-4">{error}</p>
+                    <Button onClick={refresh} variant="outline">
+                        Try Again
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <>
             <PageHeader
                 title="Intern Dashboard"
                 description="Welcome to your internship portal"
             >
-                {/* Wall Clock */}
-                <div className="relative">
-                    <div className="w-24 h-24 rounded-full border-4 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shadow-xl">
-                        <div className="text-center">
-                            <div className="text-xl font-bold tabular-nums">
-                                {currentTime.toLocaleTimeString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: false
-                                })}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">
-                                {currentTime.toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                })}
+                <div className="flex items-center gap-4">
+                    {/* Last Updated Indicator */}
+                    {lastUpdated && (
+                        <div className="text-xs text-muted-foreground">
+                            Last updated: {lastUpdated.toLocaleTimeString()}
+                        </div>
+                    )}
+                    
+                    {/* Refresh Button */}
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={refresh}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                            'Refresh'
+                        )}
+                    </Button>
+
+                    {/* Wall Clock */}
+                    <div className="relative">
+                        <div className="w-24 h-24 rounded-full border-4 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shadow-xl">
+                            <div className="text-center">
+                                <div className="text-xl font-bold tabular-nums">
+                                    {currentTime.toLocaleTimeString('en-US', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: false
+                                    })}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground">
+                                    {currentTime.toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric'
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </div>

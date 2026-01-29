@@ -53,6 +53,7 @@ import { PageHeader } from '@/components/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoading, LoadingOverlay, LoadingButton } from '@/hooks/use-loading';
 import { useApiClient } from '@/lib/api-client';
+import { calculateInternshipDuration } from '@/lib/duration-utils';
 import { cn } from '@/lib/utils';
 
 import { internFormSchema, taskFormSchema, type InternFormValues, type TaskFormValues } from '@/lib/form-validation';
@@ -66,7 +67,7 @@ type Intern = {
     university?: string | null;
     degree?: string | null;
     startDate: string;
-    endDate: string;
+    endDate: string | null;
     status: 'Upcoming' | 'Active' | 'Completed' | 'Terminated';
     stipendAmount?: number | null;
     mentorId?: string | null;
@@ -129,6 +130,18 @@ export default function InternsPage() {
     const { toast } = useToast();
     const { isLoading } = useLoading();
     const apiClient = useApiClient();
+
+    // Helper function to safely format dates
+    const formatDate = (dateString: string | null | undefined): string => {
+        if (!dateString) return 'Not set';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Invalid date';
+            return date.toLocaleDateString();
+        } catch {
+            return 'Invalid date';
+        }
+    };
 
     const addForm = useForm<InternFormValues>({
         resolver: zodResolver(internFormSchema),
@@ -472,8 +485,13 @@ export default function InternsPage() {
                                         <div className="flex items-center gap-2">
                                             <Calendar className="h-4 w-4 text-muted-foreground" />
                                             <div className="text-sm">
-                                                <p>{new Date(intern.startDate).toLocaleDateString()}</p>
-                                                <p className="text-muted-foreground">to {new Date(intern.endDate).toLocaleDateString()}</p>
+                                                <p>{formatDate(intern.startDate)}</p>
+                                                <p className="text-muted-foreground">
+                                                    to {intern.endDate ? formatDate(intern.endDate) : 'Ongoing'}
+                                                </p>
+                                                <p className="text-xs text-primary font-medium">
+                                                    {calculateInternshipDuration(intern.startDate, intern.endDate)}
+                                                </p>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -1010,11 +1028,13 @@ export default function InternsPage() {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium">Start Date</p>
-                                    <p className="text-sm text-muted-foreground">{new Date(selectedIntern.startDate).toLocaleDateString()}</p>
+                                    <p className="text-sm text-muted-foreground">{formatDate(selectedIntern.startDate)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium">End Date</p>
-                                    <p className="text-sm text-muted-foreground">{new Date(selectedIntern.endDate).toLocaleDateString()}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {selectedIntern.endDate ? formatDate(selectedIntern.endDate) : 'Ongoing'}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium">Stipend</p>
@@ -1037,7 +1057,7 @@ export default function InternsPage() {
                                         <div>
                                             <p className="text-sm font-medium">Termination Date</p>
                                             <p className="text-sm text-muted-foreground">
-                                                {selectedIntern.terminationDate ? new Date(selectedIntern.terminationDate).toLocaleDateString() : 'N/A'}
+                                                {formatDate(selectedIntern.terminationDate)}
                                             </p>
                                         </div>
                                         <div className="col-span-2">

@@ -45,6 +45,7 @@ import {
   FolderKanban,
   CheckSquare,
   BarChart3,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -59,6 +60,7 @@ const navItems = [
   { href: '/projects', label: 'Projects', icon: FolderKanban },
   { href: '/tasks', label: 'Tasks', icon: ListTodo },
   { href: '/task-approvals', label: 'Task Approvals', icon: CheckSquare },
+  { href: '/messages', label: 'Messages', icon: MessageSquare },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/attendance', label: 'Attendance', icon: CalendarCheck },
   { href: '/leaves', label: 'Leave Requests', icon: FileText },

@@ -1,8 +1,24 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const pg = require('pg');
+const { PrismaPg } = require('@prisma/adapter-pg');
 
 async function seedAdminUser() {
-    const prisma = new PrismaClient();
+    // Create database connection
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+        throw new Error('DATABASE_URL environment variable is not set');
+    }
+
+    const pool = new pg.Pool({
+        connectionString,
+        max: 10,
+        idleTimeoutMillis: 20000,
+        connectionTimeoutMillis: 5000,
+    });
+
+    const adapter = new PrismaPg(pool);
+    const prisma = new PrismaClient({ adapter });
     
     try {
         console.log('🌱 Seeding admin user...');
@@ -87,8 +103,15 @@ async function seedAdminUser() {
         throw error;
     } finally {
         await prisma.$disconnect();
+        await pool.end();
     }
 }
+
+seedAdminUser()
+    .catch((e) => {
+        console.error(e);
+        process.exit(1);
+    });
 
 seedAdminUser()
     .catch((e) => {

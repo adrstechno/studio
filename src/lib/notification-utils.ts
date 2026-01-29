@@ -10,6 +10,8 @@ export type CreateNotificationParams = {
   actionUrl?: string;
   actionLabel?: string;
   metadata?: Record<string, any>;
+  batchId?: string; // For bulk messages
+  scheduledAt?: Date;
 };
 
 export async function createNotification(params: CreateNotificationParams) {
@@ -25,7 +27,10 @@ export async function createNotification(params: CreateNotificationParams) {
         actionUrl: params.actionUrl,
         actionLabel: params.actionLabel,
         metadata: params.metadata ? JSON.stringify(params.metadata) : null,
+        batchId: params.batchId,
+        scheduledAt: params.scheduledAt,
         read: false,
+        deliveryStatus: 'sent'
       },
     });
 
@@ -106,6 +111,35 @@ export const NotificationTemplates = {
     priority: 'urgent' as NotificationPriority,
     title: 'Scheduled Maintenance',
     message: `System maintenance scheduled for ${scheduledTime}. Please save your work.`,
+  }),
+
+  // New bulk message templates
+  dailyUpdate: (updateContent: string) => ({
+    type: 'update' as NotificationType,
+    priority: 'medium' as NotificationPriority,
+    title: 'Daily Update',
+    message: updateContent,
+  }),
+
+  announcement: (announcementContent: string) => ({
+    type: 'announcement' as NotificationType,
+    priority: 'high' as NotificationPriority,
+    title: 'Important Announcement',
+    message: announcementContent,
+  }),
+
+  reminder: (reminderContent: string) => ({
+    type: 'reminder' as NotificationType,
+    priority: 'medium' as NotificationPriority,
+    title: 'Reminder',
+    message: reminderContent,
+  }),
+
+  generalMessage: (title: string, content: string) => ({
+    type: 'general' as NotificationType,
+    priority: 'medium' as NotificationPriority,
+    title,
+    message: content,
   }),
 };
 

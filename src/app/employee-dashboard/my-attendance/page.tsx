@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/page-header';
 import { useAuth } from '@/hooks/use-auth';
-import { Clock, LogIn, LogOut, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingOverlay } from '@/hooks/use-loading';
 import { AttendanceCalendar } from '@/components/attendance-calendar';
 import { ClientOnly } from '@/components/client-only';
+import { PunchInOutCard } from '@/components/punch-in-out-card';
 
 type AttendanceRecord = {
     id: string;
@@ -36,7 +37,6 @@ export default function MyAttendancePage() {
     const [currentTime, setCurrentTime] = React.useState<Date | null>(null);
     const [todayAttendance, setTodayAttendance] = React.useState<AttendanceRecord | null>(null);
     const [monthlyAttendance, setMonthlyAttendance] = React.useState<AttendanceRecord[]>([]);
-    const [loading, setLoading] = React.useState(false);
     const [employeeId, setEmployeeId] = React.useState<string | null>(null);
     const [fetchingData, setFetchingData] = React.useState(true);
     const [isClient, setIsClient] = React.useState(false);
@@ -114,115 +114,6 @@ export default function MyAttendancePage() {
         };
         fetchData();
     }, [user?.email, toast]);
-
-    const handlePunchIn = async () => {
-        if (!employeeId) {
-            toast({
-                title: 'Error',
-                description: 'Employee ID not found. Please refresh the page.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', { hour12: false });
-            const dateString = now.toISOString().split('T')[0];
-
-            // Check if late (after 9:30 AM)
-            const isLate = now.getHours() > 9 || (now.getHours() === 9 && now.getMinutes() > 30);
-
-            const res = await fetch('/api/attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    employeeId,
-                    date: dateString,
-                    status: isLate ? 'Late' : 'Present',
-                    checkIn: timeString,
-                }),
-            });
-
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(`Failed to punch in: ${errorData}`);
-            }
-
-            const record = await res.json();
-            setTodayAttendance({
-                id: record.id,
-                date: new Date(record.date),
-                status: record.status,
-                checkIn: record.checkIn,
-            });
-
-            toast({
-                title: 'Punched In Successfully',
-                description: `Check-in time: ${timeString}${isLate ? ' (Late)' : ''}`,
-            });
-        } catch (error: any) {
-            console.error('Punch in error:', error);
-            toast({
-                title: 'Error',
-                description: error.message || 'Failed to punch in',
-                variant: 'destructive',
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handlePunchOut = async () => {
-        if (!employeeId || !todayAttendance) {
-            toast({
-                title: 'Error',
-                description: 'Cannot punch out. Please ensure you have punched in first.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-US', { hour12: false });
-
-            const res = await fetch(`/api/attendance/${todayAttendance.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    checkOut: timeString,
-                }),
-            });
-
-            if (!res.ok) {
-                const errorData = await res.text();
-                throw new Error(`Failed to punch out: ${errorData}`);
-            }
-
-            const record = await res.json();
-            setTodayAttendance({
-                ...todayAttendance,
-                checkOut: record.checkOut,
-            });
-
-            toast({
-                title: 'Punched Out Successfully',
-                description: `Check-out time: ${timeString}`,
-            });
-        } catch (error: any) {
-            console.error('Punch out error:', error);
-            toast({
-                title: 'Error',
-                description: error.message || 'Failed to punch out',
-                variant: 'destructive',
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleDateSelect = (selectedDate: Date | undefined) => {
         if (!isClient) return; // Prevent execution during SSR
@@ -386,104 +277,61 @@ export default function MyAttendancePage() {
             </div>
 
             {/* Today's Attendance */}
-            <Card className="mb-6">
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <Clock className="h-5 w-5" />
-                                Today's Attendance
-                            </CardTitle>
-                            <CardDescription className="break-words">
-                                <ClientOnly fallback="Loading date...">
-                                    {currentTime ? currentTime.toLocaleDateString('en-US', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    }) : 'Loading...'}
-                                </ClientOnly>
-                            </CardDescription>
-                        </div>
-                        <div className="text-center md:text-right">
-                            <div className="text-2xl font-bold">
-                                <ClientOnly fallback="--:--:--">
-                                    {currentTime ? currentTime.toLocaleTimeString('en-US', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        second: '2-digit',
-                                        hour12: false
-                                    }) : '--:--:--'}
-                                </ClientOnly>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                                Current Time
-                            </div>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center justify-start">
-                        {todayAttendance && (
-                            <Badge variant="outline" className={cn('text-sm', statusColors[todayAttendance.status])}>
-                                {todayAttendance.status}
-                            </Badge>
-                        )}
-                    </div>
+            {employeeId && (
+                <PunchInOutCard 
+                    employeeId={employeeId} 
+                    onUpdate={() => {
+                        // Refresh attendance data when punch in/out occurs
+                        const fetchData = async () => {
+                            if (!user?.email) return;
+                            try {
+                                // Get employee by email
+                                const empRes = await fetch('/api/employees');
+                                const employees = await empRes.json();
+                                const currentEmployee = employees.find((e: { email: string }) => e.email === user.email);
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="p-4 border rounded-lg">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                                <LogIn className="h-4 w-4" />
-                                Punch In
-                            </div>
-                            <div className="text-2xl font-semibold">
-                                {todayAttendance?.checkIn || '--:--:--'}
-                            </div>
-                        </div>
-                        <div className="p-4 border rounded-lg">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                                <LogOut className="h-4 w-4" />
-                                Punch Out
-                            </div>
-                            <div className="text-2xl font-semibold">
-                                {todayAttendance?.checkOut || '--:--:--'}
-                            </div>
-                        </div>
-                    </div>
+                                if (currentEmployee) {
+                                    // Fetch today's attendance
+                                    const today = new Date();
+                                    const todayStr = today.toISOString().split('T')[0];
+                                    const todayRes = await fetch(`/api/attendance?employeeId=${currentEmployee.id}&date=${todayStr}`);
+                                    const todayData = await todayRes.json();
 
-                    {todayAttendance?.checkIn && todayAttendance?.checkOut && (
-                        <div className="p-4 bg-muted/50 rounded-lg">
-                            <div className="text-sm text-muted-foreground mb-1">Total Hours Today</div>
-                            <div className="text-3xl font-bold">
-                                {calculateTotalHours(todayAttendance.checkIn, todayAttendance.checkOut)} hrs
-                            </div>
-                        </div>
-                    )}
+                                    if (todayData.length > 0) {
+                                        const record = todayData[0];
+                                        setTodayAttendance({
+                                            id: record.id,
+                                            date: new Date(record.date),
+                                            status: record.status,
+                                            checkIn: record.checkIn,
+                                            checkOut: record.checkOut,
+                                        });
+                                    }
 
-                    <div className="flex flex-col md:flex-row gap-3">
-                        <Button
-                            onClick={handlePunchIn}
-                            disabled={loading || !!todayAttendance?.checkIn}
-                            className="flex-1"
-                            size="lg"
-                        >
-                            <LogIn className="mr-2 h-5 w-5" />
-                            Punch In
-                        </Button>
-                        <Button
-                            onClick={handlePunchOut}
-                            disabled={loading || !todayAttendance?.checkIn || !!todayAttendance?.checkOut}
-                            variant="outline"
-                            className="flex-1"
-                            size="lg"
-                        >
-                            <LogOut className="mr-2 h-5 w-5" />
-                            Punch Out
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                                    // Fetch monthly attendance
+                                    const year = today.getFullYear();
+                                    const month = today.getMonth() + 1;
+                                    const monthlyRes = await fetch(`/api/attendance?employeeId=${currentEmployee.id}&year=${year}&month=${month}`);
+                                    const monthlyData = await monthlyRes.json();
+
+                                    const records = monthlyData.map((record: any) => ({
+                                        id: record.id,
+                                        date: new Date(record.date),
+                                        status: record.status,
+                                        checkIn: record.checkIn,
+                                        checkOut: record.checkOut,
+                                    }));
+                                    setMonthlyAttendance(records);
+                                }
+                            } catch (error) {
+                                console.error('Error refreshing attendance data:', error);
+                            }
+                        };
+                        fetchData();
+                    }}
+                    className="mb-6"
+                />
+            )}
 
             {/* Monthly Calendar */}
             <Card>

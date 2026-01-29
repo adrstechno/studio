@@ -73,6 +73,13 @@ export function NotificationsPanel() {
         return <Award className="h-4 w-4" />;
       case 'system':
         return <Settings className="h-4 w-4" />;
+      case 'announcement':
+        return <Bell className="h-4 w-4" />;
+      case 'update':
+        return <FileText className="h-4 w-4" />;
+      case 'reminder':
+        return <AlertCircle className="h-4 w-4" />;
+      case 'general':
       default:
         return <FileText className="h-4 w-4" />;
     }
@@ -110,11 +117,14 @@ export function NotificationsPanel() {
   const filteredNotifications = React.useMemo(() => {
     if (activeTab === 'all') return notifications;
     if (activeTab === 'unread') return notifications.filter(n => !n.read);
+    if (activeTab === 'announcement') return notifications.filter(n => 
+      ['announcement', 'update', 'general', 'reminder'].includes(n.type)
+    );
     return notifications.filter(n => n.type === activeTab);
   }, [notifications, activeTab]);
 
   const notificationsByType = React.useMemo(() => {
-    const types = ['task', 'leave', 'project', 'attendance', 'evaluation', 'system'] as const;
+    const types = ['task', 'leave', 'project', 'attendance', 'evaluation', 'system', 'announcement', 'update', 'reminder', 'general'] as const;
     return types.reduce((acc, type) => {
       acc[type] = notifications.filter(n => n.type === type).length;
       return acc;
@@ -174,12 +184,15 @@ export function NotificationsPanel() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="px-4 pt-2">
-            <TabsList className="grid w-full grid-cols-4 h-8">
+            <TabsList className="grid w-full grid-cols-5 h-8">
               <TabsTrigger value="all" className="text-xs">
                 All {notifications.length > 0 && `(${notifications.length})`}
               </TabsTrigger>
               <TabsTrigger value="unread" className="text-xs">
                 Unread {unreadCount > 0 && `(${unreadCount})`}
+              </TabsTrigger>
+              <TabsTrigger value="announcement" className="text-xs">
+                News {(notificationsByType.announcement + notificationsByType.update + notificationsByType.general) > 0 && `(${notificationsByType.announcement + notificationsByType.update + notificationsByType.general})`}
               </TabsTrigger>
               <TabsTrigger value="task" className="text-xs">
                 Tasks {notificationsByType.task > 0 && `(${notificationsByType.task})`}
@@ -242,6 +255,11 @@ export function NotificationsPanel() {
                                   className="text-xs capitalize"
                                 >
                                   {notification.priority}
+                                </Badge>
+                              )}
+                              {notification.isBulkMessage && (
+                                <Badge variant="secondary" className="text-xs">
+                                  📢 Broadcast
                                 </Badge>
                               )}
                             </div>

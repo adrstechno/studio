@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { db } from '@/lib/db';
 
+// GET /api/auth/me - Get current user info
 export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get('authorization');
+        const authHeader = request.headers.get('Authorization');
+        
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'No valid authorization header' },
                 { status: 401 }
             );
         }
 
-        const token = authHeader.substring(7);
+        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
         const payload = verifyToken(token);
 
         if (!payload) {
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get user data
+        // Get user from database
         const user = await db.user.findUnique({
             where: { id: payload.userId },
             include: {
@@ -48,10 +50,11 @@ export async function GET(request: NextRequest) {
                 intern: user.intern
             }
         });
+
     } catch (error) {
         console.error('Auth me error:', error);
         return NextResponse.json(
-            { error: 'An error occurred' },
+            { error: 'Authentication failed' },
             { status: 500 }
         );
     }

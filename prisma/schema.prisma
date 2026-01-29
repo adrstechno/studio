@@ -265,8 +265,12 @@ model Notification {
   actionUrl   String?
   actionLabel String?
   metadata    String?
+  batchId     String?              // For bulk messages
+  scheduledAt DateTime?            // For scheduled messages
+  deliveryStatus DeliveryStatus    @default(sent)
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
+  bulkMessage BulkMessage?         @relation(fields: [batchId], references: [id])
 
   @@map("notifications")
 }
@@ -398,6 +402,9 @@ enum NotificationType {
   project
   evaluation
   system
+  announcement
+  update
+  reminder
 }
 
 enum NotificationPriority {
@@ -405,4 +412,52 @@ enum NotificationPriority {
   medium
   high
   urgent
+}
+
+enum RecipientType {
+  all
+  employees
+  interns
+  role
+  project
+  custom
+}
+
+enum BulkMessageStatus {
+  draft
+  scheduled
+  sending
+  sent
+  failed
+}
+
+enum DeliveryStatus {
+  pending
+  sent
+  delivered
+  failed
+}
+model BulkMessage {
+  id              String            @id @default(cuid())
+  title           String
+  message         String
+  type            NotificationType  @default(general)
+  priority        NotificationPriority @default(medium)
+  recipientType   RecipientType     @default(all)
+  recipientFilter String?           // JSON string for custom filters
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  sentBy          String            // Admin user ID
+  totalRecipients Int               @default(0)
+  deliveredCount  Int               @default(0)
+  readCount       Int               @default(0)
+  status          BulkMessageStatus @default(draft)
+  actionUrl       String?
+  actionLabel     String?
+  metadata        String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  notifications   Notification[]
+
+  @@map("bulk_messages")
 }

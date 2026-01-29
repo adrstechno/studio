@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
-export type NotificationType = 'leave' | 'task' | 'attendance' | 'general' | 'project' | 'evaluation' | 'system';
+export type NotificationType = 'leave' | 'task' | 'attendance' | 'general' | 'project' | 'evaluation' | 'system' | 'announcement' | 'update' | 'reminder';
 
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -20,6 +20,8 @@ export type Notification = {
   actionLabel?: string;
   userId: string;
   metadata?: Record<string, any>;
+  batchId?: string; // For bulk messages
+  isBulkMessage?: boolean;
 };
 
 type NotificationContextType = {
@@ -52,7 +54,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         const data = await response.json();
         setNotifications(data.map((n: any) => ({
           ...n,
-          timestamp: new Date(n.timestamp),
+          timestamp: new Date(n.createdAt || n.timestamp),
+          isBulkMessage: !!n.batchId, // Mark as bulk message if it has a batchId
         })));
       }
     } catch (error) {
