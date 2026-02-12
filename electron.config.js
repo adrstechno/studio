@@ -1,9 +1,11 @@
 // Electron Configuration
+require('dotenv').config({ path: '.env.electron' });
+
 module.exports = {
   // URL Configuration
   urls: {
-    development: "http://localhost:9002",
-    production: "https://studio-six-mu-29.vercel.app"
+    development: process.env.ELECTRON_DEVELOPMENT_URL || "http://localhost:9002",
+    production: process.env.ELECTRON_PRODUCTION_URL || "https://studio-flame-three-95.vercel.app"
   },
   
   // Window Configuration

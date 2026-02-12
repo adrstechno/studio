@@ -10,7 +10,7 @@ The Electron app is now configured to use different URLs based on environment:
 - **Features**: Hot reloading, DevTools, full development experience
 
 ### Production  
-- **URL**: `https://studio-six-mu-29.vercel.app`
+- **URL**: `https://studio-flame-three-95.vercel.app`
 - **Usage**: Vercel deployment
 - **Features**: Always latest version, no local server needed
 
@@ -44,7 +44,7 @@ Central configuration for URLs, window settings, and app metadata:
 {
   urls: {
     development: "http://localhost:9002",
-    production: "https://studio-six-mu-29.vercel.app"
+    production: "https://studio-flame-three-95.vercel.app"
   }
 }
 ```

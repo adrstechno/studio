@@ -6,7 +6,7 @@ This project includes an Electron desktop application wrapper for the Next.js we
 
 The Electron app connects to different URLs based on the environment:
 - **Development**: Connects to local Next.js dev server (`http://localhost:9002`)
-- **Production**: Connects to Vercel deployment (`https://studio-six-mu-29.vercel.app`)
+- **Production**: Connects to Vercel deployment (`https://studio-flame-three-95.vercel.app`)
 
 ## Development
 
@@ -50,7 +50,7 @@ npm run electron:build
 - Full local development experience
 
 ### Production Mode
-- Electron connects directly to `https://studio-six-mu-29.vercel.app`
+- Electron connects directly to `https://studio-flame-three-95.vercel.app`
 - No local server needed
 - Always uses the latest deployed version
 - Requires internet connection
@@ -59,13 +59,13 @@ npm run electron:build
 
 ### URLs
 - **Development**: `http://localhost:9002` (local dev server)
-- **Production**: `https://studio-six-mu-29.vercel.app` (Vercel deployment)
+- **Production**: `https://studio-flame-three-95.vercel.app` (Vercel deployment)
 
 ### Environment Variables
 Update `.env.electron` to change URLs:
 ```env
 DEV_SERVER_URL=http://localhost:9002
-PROD_SERVER_URL=https://studio-six-mu-29.vercel.app
+PROD_SERVER_URL=https://studio-flame-three-95.vercel.app
 ```
 
 ## Configuration

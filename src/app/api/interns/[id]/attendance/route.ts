@@ -26,17 +26,35 @@ export async function GET(
         }
 
         // Get the employee record linked to this intern (for attendance tracking)
-        const employee = await withRetry(async () => {
+        let employee = await withRetry(async () => {
             return await db.employee.findFirst({
                 where: { email: intern.email },
             });
         });
 
+        // If no employee record exists, create one for the intern
         if (!employee) {
-            return NextResponse.json({ 
-                error: 'No employee record found for this intern',
-                message: 'Attendance tracking requires an employee record'
-            }, { status: 404 });
+            employee = await withRetry(async () => {
+                return await db.employee.create({
+                    data: {
+                        name: intern.name,
+                        email: intern.email,
+                        phone: intern.phone,
+                        avatarUrl: intern.avatarUrl,
+                        role: 'Developer',
+                        project: intern.project || 'Unassigned',
+                        projects: intern.projects,
+                        isActive: intern.status === 'Active',
+                        enrollmentDate: intern.startDate,
+                        casualLeaveQuota: 0,
+                        sickLeaveQuota: 0,
+                        earnedLeaveQuota: 0,
+                        maternityLeaveQuota: 0,
+                        paternityLeaveQuota: 0,
+                        workFromHomeQuota: 0,
+                    },
+                });
+            });
         }
 
         let whereClause: any = {
@@ -63,7 +81,7 @@ export async function GET(
         }
 
         const attendance = await withRetry(async () => {
-            return await db.attendance.findMany({
+            return await dbdMany({
                 where: whereClause,
                 orderBy: { date: 'desc' },
             });
@@ -86,7 +104,18 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const body = await request.json();
+
+        // on't fail if it's empty
+        let body = {};
+        try {
+            const text = await request.text();
+            if (text) {
+                body = JSON.parse(text);
+            }
+        } catch (e) {
+            // Body is optional for punch in
+            console.log('No body provided for punch in, using defaults');
+        }
 
         // Verify intern exists
         const intern = await withRetry(async () => {
@@ -96,20 +125,39 @@ export async function POST(
         });
 
         if (!intern) {
-            return NextResponse.json({ error: 'Intern not found' }, { status: 404 });
+            return NextResponse.json({ errornd' }, { status: 404 });
         }
 
-        // Get employee record
-        const employee = await withRetry(async () => {
+        // Get employee record or create one if it doesn't exist
+        let employee = await withRetry(async () => {
             return await db.employee.findFirst({
                 where: { email: intern.email },
             });
         });
 
+        // If no employee record exists, create one for the intern
         if (!employee) {
-            return NextResponse.json({ 
-                error: 'No employee record found for this intern' 
-            }, { status: 404 });
+            employee = await withRetry(async () => {
+                return await db.employee.create({
+                    data: {
+                        name: intern.name,
+                        email: intern.email,
+         : intern.phone,
+                        avatarUrl: intern.avatarUrl,
+                        role: 'Developer',
+                        project: intern.project || 'Unassigned',
+                        projects: intern.projects,
+                        isActive: intern.status === 'Active',
+                        enrollmentDate: intern.startDate,
+                        casualLeaveQuota: 0,
+                        sickLeaveQuota: 0,
+                        earnedLeaveQuota: 0,
+                        maternityLeaveQuota: 0,
+                        paternityLeaveQuota: 0,
+                        workFromHomeQuota: 0,
+                    },
+                });
+            });
         }
 
         // Get today's date at midnight
@@ -123,14 +171,14 @@ export async function POST(
                     employeeId: employee.id,
                     date: {
                         gte: today,
-                        lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+                        lt: 000),
                     },
                 },
             });
         });
 
         if (existingAttendance) {
-            return NextResponse.json({ 
+            return NextResponse.json({
                 error: 'Already punched in today',
                 attendance: existingAttendance
             }, { status: 400 });
@@ -146,7 +194,7 @@ export async function POST(
 
         const attendance = await withRetry(async () => {
             return await db.attendance.create({
-                data: {
+     data: {
                     employeeId: employee.id,
                     date: today,
                     status: AttendanceStatus.Present,
@@ -161,7 +209,7 @@ export async function POST(
         }, { status: 201 });
     } catch (error) {
         console.error('Error punching in:', error);
-        return NextResponse.json({ error: 'Failed to punch in' }, { status: 500 });
+        return NextResponse.js0 });
     }
 }
 
@@ -185,7 +233,7 @@ export async function PATCH(
         }
 
         // Get employee record
-        const employee = await withRetry(async () => {
+yee = await withRetry(async () => {
             return await db.employee.findFirst({
                 where: { email: intern.email },
             });
@@ -204,8 +252,8 @@ export async function PATCH(
         // Find today's attendance record
         const existingAttendance = await withRetry(async () => {
             return await db.attendance.findFirst({
-                where: {
-                    employeeId: employee.id,
+      where: {
+                    employeeId: employee.i
                     date: {
                         gte: today,
                         lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
@@ -227,7 +275,7 @@ export async function PATCH(
             }, { status: 400 });
         }
 
-        // Update with punch out time
+        // ith punch out time
         const now = new Date();
         const checkOutTime = now.toLocaleTimeString('en-US', {
             hour: '2-digit',
@@ -238,13 +286,7 @@ export async function PATCH(
         const attendance = await withRetry(async () => {
             return await db.attendance.update({
                 where: { id: existingAttendance.id },
-                data: {
-                    checkOut: checkOutTime,
-                },
-            });
-        });
-
-        return NextResponse.json({
+n({
             message: 'Punched out successfully',
             attendance,
         });
@@ -253,3 +295,10 @@ export async function PATCH(
         return NextResponse.json({ error: 'Failed to punch out' }, { status: 500 });
     }
 }
+                data: {
+                    checkOut: checkOutTime,
+                },
+            });
+        });
+
+        return NextResponse.jso

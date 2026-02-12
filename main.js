@@ -38,7 +38,11 @@ function createWindow() {
   // Load the app
   const appUrl = isDev ? config.urls.development : config.urls.production;
   
-  console.log(`Loading ${isDev ? 'development' : 'production'} app: ${appUrl}`);
+  console.log('='.repeat(60));
+  console.log(`Environment: ${isDev ? 'DEVELOPMENT' : 'PRODUCTION'}`);
+  console.log(`Loading app from: ${appUrl}`);
+  console.log('='.repeat(60));
+  
   mainWindow.loadURL(appUrl);
 
   if (isDev && config.development.openDevTools) {

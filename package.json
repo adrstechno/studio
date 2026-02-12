@@ -11,6 +11,7 @@
     "next:start": "next start",
     "electron": "electron .",
     "electron:test": "electron test-electron.js",
+    "electron:config-test": "node test-electron-config.js",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:9002 && electron .\"",
     "electron:pack": "electron-builder --dir",
     "electron:dist": "electron-builder",
@@ -124,7 +125,6 @@
       ]
     },
     "win": {
-      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",

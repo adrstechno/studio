@@ -71,7 +71,7 @@ type Project = {
   description?: string;
   githubRepo?: string;
   techStack?: string;
-  projectType?: 'Product' | 'Project';
+  projectType?: 'Company' | 'EmployeeSpecific';
   team?: { id: string; name: string; email: string; avatarUrl?: string; role: string }[];
   tasks?: { id: string; title: string; status: string }[];
   createdAt: string;
@@ -153,7 +153,7 @@ export default function ProjectsPage() {
   // Search and filter states
   const [searchQuery, setSearchQuery] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<'all' | Project['status']>('all');
-  const [typeFilter, setTypeFilter] = React.useState<'all' | 'Product' | 'Project'>('all');
+  const [typeFilter, setTypeFilter] = React.useState<'all' | 'Company' | 'EmployeeSpecific'>('all');
   
   const [editProject, setEditProject] = React.useState({
     name: '',
@@ -163,7 +163,7 @@ export default function ProjectsPage() {
     techStack: '',
     status: 'OnTrack' as Project['status'],
     progress: 0,
-    projectType: 'Project' as 'Product' | 'Project',
+    projectType: 'Company' as 'Company' | 'EmployeeSpecific',
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
   });
@@ -175,7 +175,7 @@ export default function ProjectsPage() {
     githubRepo: '',
     techStack: '',
     status: 'OnTrack' as Project['status'],
-    projectType: 'Project' as 'Product' | 'Project',
+    projectType: 'Company' as 'Company' | 'EmployeeSpecific',
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
   });
@@ -251,7 +251,7 @@ export default function ProjectsPage() {
       setCreateDialogOpen(false);
       setNewProject({
         name: '', clientName: '', description: '', githubRepo: '', techStack: '',
-        status: 'OnTrack', projectType: 'Project', startDate: undefined, endDate: undefined,
+        status: 'OnTrack', projectType: 'Company', startDate: undefined, endDate: undefined,
       });
       toast({ title: 'Success', description: 'Project created successfully' });
     } catch (error) {
@@ -272,7 +272,7 @@ export default function ProjectsPage() {
       techStack: project.techStack || '',
       status: project.status,
       progress: project.progress,
-      projectType: project.projectType || 'Project',
+      projectType: project.projectType || 'Company',
       startDate: project.startDate ? new Date(project.startDate) : undefined,
       endDate: project.endDate ? new Date(project.endDate) : undefined,
     });
@@ -581,8 +581,8 @@ export default function ProjectsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Product">Product</SelectItem>
-              <SelectItem value="Project">Project</SelectItem>
+              <SelectItem value="Company">Company</SelectItem>
+              <SelectItem value="EmployeeSpecific">Employee Specific</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(value: 'all' | Project['status']) => setStatusFilter(value)}>
@@ -836,11 +836,11 @@ export default function ProjectsPage() {
             </div>
             <div className="grid gap-2">
               <Label>Project Type</Label>
-              <Select value={newProject.projectType} onValueChange={(v) => setNewProject({ ...newProject, projectType: v as 'Product' | 'Project' })}>
+              <Select value={newProject.projectType} onValueChange={(v) => setNewProject({ ...newProject, projectType: v as 'Company' | 'EmployeeSpecific' })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Project">Project</SelectItem>
-                  <SelectItem value="Product">Product</SelectItem>
+                  <SelectItem value="Company">Company</SelectItem>
+                  <SelectItem value="EmployeeSpecific">Employee Specific</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -955,11 +955,11 @@ export default function ProjectsPage() {
               </div>
               <div className="grid gap-2">
                 <Label>Project Type</Label>
-                <Select value={editProject.projectType} onValueChange={(v) => setEditProject({ ...editProject, projectType: v as 'Product' | 'Project' })}>
+                <Select value={editProject.projectType} onValueChange={(v) => setEditProject({ ...editProject, projectType: v as 'Company' | 'EmployeeSpecific' })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Project">Project</SelectItem>
-                    <SelectItem value="Product">Product</SelectItem>
+                    <SelectItem value="Company">Company</SelectItem>
+                    <SelectItem value="EmployeeSpecific">Employee Specific</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
