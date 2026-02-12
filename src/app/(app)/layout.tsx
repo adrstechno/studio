@@ -46,6 +46,7 @@ import {
   CheckSquare,
   BarChart3,
   MessageSquare,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -58,6 +59,7 @@ const navItems = [
   { href: '/employees', label: 'Employees', icon: Users },
   { href: '/interns', label: 'Interns', icon: Users },
   { href: '/projects', label: 'Projects', icon: FolderKanban },
+   { href: '/daily-logs', label: 'Daily Logs', icon: Clock },
   { href: '/tasks', label: 'Tasks', icon: ListTodo },
   { href: '/task-approvals', label: 'Task Approvals', icon: CheckSquare },
   { href: '/messages', label: 'Messages', icon: MessageSquare },
