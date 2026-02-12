@@ -119,14 +119,30 @@ export default function InternDailyLogsPage() {
 
       // Fetch daily logs for all intern's projects
       const allLogs: DailyLog[] = [];
+      
+      // Get the employee record for this intern
+      let employeeId = currentIntern.id;
+      try {
+        const employeeRes = await fetch(`/api/employees?email=${encodeURIComponent(user.email)}`);
+        if (employeeRes.ok) {
+          const employees = await employeeRes.json();
+          const employee = Array.isArray(employees) ? employees.find((e: any) => e.email === user.email) : null;
+          if (employee) {
+            employeeId = employee.id;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching employee record:', error);
+      }
+      
       for (const projectName of internProjects) {
         try {
           const logsRes = await fetch(`/api/projects/${encodeURIComponent(projectName)}/daily-logs`);
           if (logsRes.ok) {
             const logsData = await logsRes.json();
             if (Array.isArray(logsData)) {
-              // Filter logs by this intern
-              const internLogs = logsData.filter((log: any) => log.employeeId === currentIntern.id);
+              // Filter logs by this intern's employee ID
+              const internLogs = logsData.filter((log: any) => log.employeeId === employeeId);
               allLogs.push(...internLogs);
             }
           }
