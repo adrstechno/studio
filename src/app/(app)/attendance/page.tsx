@@ -28,6 +28,7 @@ import {
 import { Users, Clock, TrendingUp, CalendarCheck, Loader2, Filter } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { cn } from '@/lib/utils';
+import { formatTimeForDisplay } from '@/lib/attendance-time-utils';
 
 const statusColors: Record<string, string> = {
   Present: 'text-green-400 bg-green-900/20 border-green-400/20',
@@ -379,8 +380,8 @@ export default function AttendancePage() {
                             {record?.status || 'Unknown'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm">{record?.checkIn || '-'}</TableCell>
-                        <TableCell className="text-sm">{record?.checkOut || '-'}</TableCell>
+                        <TableCell className="text-sm">{record?.checkIn ? formatTimeForDisplay(record.checkIn) : '-'}</TableCell>
+                        <TableCell className="text-sm">{record?.checkOut ? formatTimeForDisplay(record.checkOut) : '-'}</TableCell>
                       </TableRow>
                     )) : (
                       <TableRow>
@@ -441,7 +442,7 @@ export default function AttendancePage() {
                             </Badge>
                             {selectedDateRecord.checkIn && (
                               <span className="text-xs text-muted-foreground">
-                                {selectedDateRecord.checkIn} - {selectedDateRecord.checkOut || 'Ongoing'}
+                                {formatTimeForDisplay(selectedDateRecord.checkIn)} - {selectedDateRecord.checkOut ? formatTimeForDisplay(selectedDateRecord.checkOut) : 'Ongoing'}
                               </span>
                             )}
                           </div>

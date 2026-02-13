@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Clock, Calendar as CalendarIcon, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { formatTimeForDisplay, calculateTotalHours as calcTotalHours, durationToDecimalHours } from '@/lib/attendance-time-utils';
 import { LoadingOverlay } from '@/hooks/use-loading';
 import { AttendanceCalendar } from '@/components/attendance-calendar';
 import { ClientOnly } from '@/components/client-only';
@@ -129,32 +130,6 @@ export default function MyAttendancePage() {
         }
     };
 
-    const calculateTotalHours = (checkIn?: string, checkOut?: string) => {
-        if (!checkIn || !checkOut) return '0:00';
-
-        try {
-            const [inH, inM] = checkIn.split(':').map(Number);
-            const [outH, outM] = checkOut.split(':').map(Number);
-
-            // Validate the parsed numbers
-            if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) {
-                return '0:00';
-            }
-
-            const totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
-
-            // Handle negative time (next day checkout)
-            const adjustedMinutes = totalMinutes < 0 ? totalMinutes + (24 * 60) : totalMinutes;
-
-            const hours = Math.floor(adjustedMinutes / 60);
-            const minutes = adjustedMinutes % 60;
-
-            return `${hours}:${String(minutes).padStart(2, '0')}`;
-        } catch (error) {
-            console.error('Error calculating total hours:', error);
-            return '0:00';
-        }
-    };
 
     // Calculate monthly stats
     const thisMonthStats = React.useMemo(() => {
@@ -170,9 +145,8 @@ export default function MyAttendancePage() {
         const totalHours = monthlyAttendance.reduce((sum: number, record: AttendanceRecord) => {
             if (record?.checkIn && record?.checkOut) {
                 try {
-                    const timeStr = calculateTotalHours(record.checkIn, record.checkOut);
-                    const hours = parseFloat(timeStr.replace(':', '.'));
-                    return sum + (isNaN(hours) ? 0 : hours);
+                    const durationStr = calcTotalHours(record.checkIn, record.checkOut);
+                    return sum + durationToDecimalHours(durationStr);
                 } catch (error) {
                     console.error('Error calculating hours for record:', record, error);
                     return sum;
@@ -399,19 +373,19 @@ export default function MyAttendancePage() {
                                                         {record.checkIn && (
                                                             <div className="flex justify-between">
                                                                 <span>Check In:</span>
-                                                                <span className="font-medium">{record.checkIn}</span>
+                                                                <span className="font-medium">{formatTimeForDisplay(record.checkIn)}</span>
                                                             </div>
                                                         )}
                                                         {record.checkOut && (
                                                             <div className="flex justify-between">
                                                                 <span>Check Out:</span>
-                                                                <span className="font-medium">{record.checkOut}</span>
+                                                                <span className="font-medium">{formatTimeForDisplay(record.checkOut)}</span>
                                                             </div>
                                                         )}
                                                         {record.checkIn && record.checkOut && (
                                                             <div className="flex justify-between font-semibold">
                                                                 <span>Total Hours:</span>
-                                                                <span>{calculateTotalHours(record.checkIn, record.checkOut)} hrs</span>
+                                                                <span>{calcTotalHours(record.checkIn, record.checkOut)} hrs</span>
                                                             </div>
                                                         )}
                                                     </>

@@ -8,6 +8,7 @@ import { Clock, LogIn, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { ClientOnly } from '@/components/client-only';
+import { formatTimeForDisplay, calculateTotalHours as calcTotalHours } from '@/lib/attendance-time-utils';
 
 type AttendanceRecord = {
     id: string;
@@ -202,32 +203,6 @@ export function PunchInOutCard({ employeeId, onUpdate, className }: PunchInOutCa
         }
     };
 
-    const calculateTotalHours = (checkIn?: string, checkOut?: string) => {
-        if (!checkIn || !checkOut) return '0:00';
-
-        try {
-            const [inH, inM] = checkIn.split(':').map(Number);
-            const [outH, outM] = checkOut.split(':').map(Number);
-
-            // Validate the parsed numbers
-            if (isNaN(inH) || isNaN(inM) || isNaN(outH) || isNaN(outM)) {
-                return '0:00';
-            }
-
-            const totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
-
-            // Handle negative time (next day checkout)
-            const adjustedMinutes = totalMinutes < 0 ? totalMinutes + (24 * 60) : totalMinutes;
-
-            const hours = Math.floor(adjustedMinutes / 60);
-            const minutes = adjustedMinutes % 60;
-
-            return `${hours}:${String(minutes).padStart(2, '0')}`;
-        } catch (error) {
-            console.error('Error calculating total hours:', error);
-            return '0:00';
-        }
-    };
 
     if (fetchingData) {
         return (
@@ -294,7 +269,7 @@ export function PunchInOutCard({ employeeId, onUpdate, className }: PunchInOutCa
                             Punch In
                         </div>
                         <div className="text-2xl font-semibold">
-                            {todayAttendance?.checkIn || '--:--:--'}
+                            {todayAttendance?.checkIn ? formatTimeForDisplay(todayAttendance.checkIn) : '--:--'}
                         </div>
                     </div>
                     <div className="p-4 border rounded-lg">
@@ -303,7 +278,7 @@ export function PunchInOutCard({ employeeId, onUpdate, className }: PunchInOutCa
                             Punch Out
                         </div>
                         <div className="text-2xl font-semibold">
-                            {todayAttendance?.checkOut || '--:--:--'}
+                            {todayAttendance?.checkOut ? formatTimeForDisplay(todayAttendance.checkOut) : '--:--'}
                         </div>
                     </div>
                 </div>
@@ -312,7 +287,7 @@ export function PunchInOutCard({ employeeId, onUpdate, className }: PunchInOutCa
                     <div className="p-4 bg-muted/50 rounded-lg">
                         <div className="text-sm text-muted-foreground mb-1">Total Hours Today</div>
                         <div className="text-3xl font-bold">
-                            {calculateTotalHours(todayAttendance.checkIn, todayAttendance.checkOut)} hrs
+                            {calcTotalHours(todayAttendance.checkIn, todayAttendance.checkOut)} hrs
                         </div>
                     </div>
                 )}

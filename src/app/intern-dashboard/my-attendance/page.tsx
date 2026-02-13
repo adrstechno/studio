@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { LoaderCircle, Calendar, Clock, CheckCircle2, XCircle, LogIn, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
+import { formatTimeForDisplay } from '@/lib/attendance-time-utils';
 import {
   Select,
   SelectContent,
@@ -296,7 +297,7 @@ export default function InternMyAttendancePage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Punch In</p>
-                  <p className="text-xl font-bold">{todayAttendance.checkIn || '--:--'}</p>
+                  <p className="text-xl font-bold">{todayAttendance.checkIn ? formatTimeForDisplay(todayAttendance.checkIn) : '--:--'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-lg border border-red-500/20">
@@ -305,7 +306,7 @@ export default function InternMyAttendancePage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Punch Out</p>
-                  <p className="text-xl font-bold">{todayAttendance.checkOut || '--:--'}</p>
+                  <p className="text-xl font-bold">{todayAttendance.checkOut ? formatTimeForDisplay(todayAttendance.checkOut) : '--:--'}</p>
                 </div>
               </div>
             </div>
@@ -395,13 +396,13 @@ export default function InternMyAttendancePage() {
                     {record.checkIn && (
                       <div className="text-right">
                         <p className="text-xs text-muted-foreground">Check In</p>
-                        <p className="font-medium">{record.checkIn}</p>
+                        <p className="font-medium">{formatTimeForDisplay(record.checkIn)}</p>
                       </div>
                     )}
                     {record.checkOut && (
                       <div className="text-right">
                         <p className="text-xs text-muted-foreground">Check Out</p>
-                        <p className="font-medium">{record.checkOut}</p>
+                        <p className="font-medium">{formatTimeForDisplay(record.checkOut)}</p>
                       </div>
                     )}
                     <Badge variant="outline" className={getStatusColor(record.status)}>

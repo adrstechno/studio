@@ -150,11 +150,8 @@ export async function POST(
         }
 
         const now = new Date();
-        const checkInTime = now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const checkInTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
         const attendance = await withRetry(async () => {
             return await db.attendance.create({
@@ -231,11 +228,8 @@ export async function PATCH(
         }
 
         const now = new Date();
-        const checkOutTime = now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const checkOutTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
         const attendance = await withRetry(async () => {
             return await db.attendance.update({
