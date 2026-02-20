@@ -26,12 +26,12 @@ type AttendanceRecord = {
   checkOut: string | null;
 };
 
-export default function InternMyAttendancePage() {
+export default function TelecallerMyAttendancePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(true);
   const [attendance, setAttendance] = React.useState<AttendanceRecord[]>([]);
-  const [internId, setInternId] = React.useState<string | null>(null);
+  const [employeeId, setEmployeeId] = React.useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = React.useState(format(new Date(), 'yyyy-MM'));
   const [todayAttendance, setTodayAttendance] = React.useState<AttendanceRecord | null>(null);
   const [punchingIn, setPunchingIn] = React.useState(false);
@@ -45,46 +45,43 @@ export default function InternMyAttendancePage() {
     if (!user?.email) return;
 
     try {
-      // Get intern data
-      const internRes = await fetch(`/api/interns?email=${encodeURIComponent(user.email)}`);
-      if (!internRes.ok) {
+      const employeeRes = await fetch(`/api/employees?email=${encodeURIComponent(user.email)}`);
+      if (!employeeRes.ok) {
         setLoading(false);
         return;
       }
 
-      const interns = await internRes.json();
-      const currentIntern = Array.isArray(interns) ? interns.find((i: any) => i.email === user.email) : null;
+      const employees = await employeeRes.json();
+      const employee = Array.isArray(employees) 
+        ? employees.find((e: any) => e.email === user.email) 
+        : null;
 
-      if (!currentIntern) {
+      if (!employee) {
         setLoading(false);
         return;
       }
 
-      setInternId(currentIntern.id);
+      setEmployeeId(employee.id);
 
-      // Fetch today's attendance
       const today = format(new Date(), 'yyyy-MM-dd');
-      const todayRes = await fetch(`/api/interns/${currentIntern.id}/attendance?date=${today}`);
+      const todayRes = await fetch(`/api/attendance?employeeId=${employee.id}&date=${today}`);
       if (todayRes.ok) {
         const todayData = await todayRes.json();
-        if (todayData.attendance && todayData.attendance.length > 0) {
-          setTodayAttendance(todayData.attendance[0]);
+        if (todayData && todayData.length > 0) {
+          setTodayAttendance(todayData[0]);
         } else {
           setTodayAttendance(null);
         }
       }
 
-      // Parse selected month
       const [year, month] = selectedMonth.split('-');
-
-      // Fetch attendance for selected month
       const attendanceRes = await fetch(
-        `/api/interns/${currentIntern.id}/attendance?month=${month}&year=${year}`
+        `/api/attendance?employeeId=${employee.id}&month=${month}&year=${year}`
       );
 
       if (attendanceRes.ok) {
         const data = await attendanceRes.json();
-        setAttendance(data.attendance || []);
+        setAttendance(data || []);
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -94,19 +91,25 @@ export default function InternMyAttendancePage() {
   };
 
   const handlePunchIn = async () => {
-    if (!internId) return;
+    if (!employeeId) return;
     
     setPunchingIn(true);
     try {
-      // Get current local time in HH:MM format
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
       const checkIn = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      const response = await fetch(`/api/interns/${internId}/attendance`, {
+      const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkIn }),
+        body: JSON.stringify({
+          employeeId,
+          date: today.toISOString(),
+          status: 'Present',
+          checkIn,
+        }),
       });
 
       const data = await response.json();
@@ -115,13 +118,12 @@ export default function InternMyAttendancePage() {
         throw new Error(data.error || 'Failed to punch in');
       }
 
-      setTodayAttendance(data.attendance);
+      setTodayAttendance(data);
       toast({
         title: 'Success',
         description: 'Punched in successfully!',
       });
       
-      // Refresh attendance data
       fetchData();
     } catch (error: any) {
       toast({
@@ -135,19 +137,21 @@ export default function InternMyAttendancePage() {
   };
 
   const handlePunchOut = async () => {
-    if (!internId) return;
+    if (!employeeId || !todayAttendance) return;
     
     setPunchingOut(true);
     try {
-      // Get current local time in HH:MM format
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, '0');
       const checkOut = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const response = await fetch(`/api/interns/${internId}/attendance`, {
-        method: 'PATCH',
+      const response = await fetch('/api/attendance', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ checkOut }),
+        body: JSON.stringify({
+          id: todayAttendance.id,
+          checkOut,
+        }),
       });
 
       const data = await response.json();
@@ -156,13 +160,12 @@ export default function InternMyAttendancePage() {
         throw new Error(data.error || 'Failed to punch out');
       }
 
-      setTodayAttendance(data.attendance);
+      setTodayAttendance(data);
       toast({
         title: 'Success',
         description: 'Punched out successfully!',
       });
       
-      // Refresh attendance data
       fetchData();
     } catch (error: any) {
       toast({
@@ -203,14 +206,12 @@ export default function InternMyAttendancePage() {
     }
   };
 
-  // Calculate stats
   const presentDays = attendance.filter(a => a.status === 'Present').length;
   const lateDays = attendance.filter(a => a.status === 'Late').length;
   const absentDays = attendance.filter(a => a.status === 'Absent').length;
   const totalDays = attendance.length;
   const attendancePercentage = totalDays > 0 ? ((presentDays + lateDays) / totalDays * 100).toFixed(1) : '0';
 
-  // Generate month options (last 6 months)
   const monthOptions = Array.from({ length: 6 }, (_, i) => {
     const date = new Date();
     date.setMonth(date.getMonth() - i);
@@ -248,7 +249,6 @@ export default function InternMyAttendancePage() {
         </Select>
       </PageHeader>
 
-      {/* Punch In/Out Card */}
       <Card className="mb-6 border-2">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -326,7 +326,6 @@ export default function InternMyAttendancePage() {
         )}
       </Card>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
@@ -370,7 +369,6 @@ export default function InternMyAttendancePage() {
         </Card>
       </div>
 
-      {/* Attendance Records */}
       <Card>
         <CardHeader>
           <CardTitle>Attendance Records</CardTitle>

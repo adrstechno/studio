@@ -256,6 +256,7 @@ enum Role {
   QA
   Admin
   TeamLead
+  Telecaller
 }
 
 enum ProjectStatus {

@@ -91,6 +91,14 @@ export async function POST(
             console.log('No body provided for punch in');
         }
 
+        // Get checkIn time from client or use server time as fallback
+        let checkInTime = (body as any).checkIn;
+        if (!checkInTime) {
+            const now = new Date();
+            const pad = (n: number) => String(n).padStart(2, '0');
+            checkInTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        }
+
         const intern = await withRetry(async () => {
             return await db.intern.findUnique({ where: { id } });
         });
@@ -149,10 +157,6 @@ export async function POST(
             }, { status: 400 });
         }
 
-        const now = new Date();
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const checkInTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
         const attendance = await withRetry(async () => {
             return await db.attendance.create({
                 data: {
@@ -180,6 +184,22 @@ export async function PATCH(
 ) {
     try {
         const { id } = await params;
+
+        // Get checkOut time from client or use server time as fallback
+        let body = {};
+        try {
+            const text = await request.text();
+            if (text) body = JSON.parse(text);
+        } catch (e) {
+            console.log('No body provided for punch out');
+        }
+
+        let checkOutTime = (body as any).checkOut;
+        if (!checkOutTime) {
+            const now = new Date();
+            const pad = (n: number) => String(n).padStart(2, '0');
+            checkOutTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        }
 
         const intern = await withRetry(async () => {
             return await db.intern.findUnique({ where: { id } });
@@ -226,10 +246,6 @@ export async function PATCH(
                 attendance: existingAttendance
             }, { status: 400 });
         }
-
-        const now = new Date();
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const checkOutTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
         const attendance = await withRetry(async () => {
             return await db.attendance.update({

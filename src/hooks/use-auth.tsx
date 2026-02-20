@@ -99,6 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 router.push('/dashboard');
             } else if (data.user.role === 'intern') {
                 router.push('/intern-dashboard');
+            } else if (data.user.employee?.role === 'Telecaller') {
+                router.push('/telecaller-dashboard');
             } else {
                 router.push('/employee-dashboard');
             }

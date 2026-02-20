@@ -575,7 +575,7 @@ export default function ProjectsPage() {
           />
         </div>
         <div className="flex gap-2">
-          <Select value={typeFilter} onValueChange={(value: 'all' | 'Product' | 'Project') => setTypeFilter(value)}>
+          <Select value={typeFilter} onValueChange={(value: 'all' | 'Company' | 'EmployeeSpecific') => setTypeFilter(value)}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
